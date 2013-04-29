@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.0
+Version: 1.0.1
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET') {
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET') {
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -77,36 +77,15 @@ function ptadn_conf() {
 
 	$updated = false;
 
-    if ($_GET['code']) {
+    if ($_GET['token']) {
 
-        if ($_GET['code'] == 'reset') {
+        if ($_GET['token'] == 'reset') {
 
             $options['ptadn_token'] = null;
 
         } else {
 
-            $ch = curl_init();
-
-            $params = array(
-                'client_id' => $options['ptadn_key'],
-                'client_secret' => $options['ptadn_secret'],
-                'grant_type' => 'authorization_code',
-                'redirect_uri' => admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php'),
-                'code' => $_GET['code']
-            );
-
-            curl_setopt($ch, CURLOPT_URL, 'https://account.app.net/oauth/access_token');
-            curl_setopt($ch, CURLOPT_POST, count($params));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
-
-            $data = curl_exec($ch);
-            curl_close($ch);
-
-            $json = json_decode($data);
-
-            $options['ptadn_token'] = $json->access_token;
+            $options['ptadn_token'] = $_GET['token'];
 
         }
 
@@ -180,13 +159,10 @@ function ptadn_conf() {
     if (empty($options['ptadn_token'])) {
 
         $params = array(
-            'client_id' => $options['ptadn_key'],
-            'response_type' => 'code',
-            'scope' => 'write_post',
             'redirect_uri' => admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php')
         );
 
-        $auth_url = 'https://account.app.net/oauth/authenticate?'.http_build_query($params);
+        $auth_url = 'http://maxime.sh/triggers/adn.php?'.http_build_query($params);
 
         echo '<p><a href="'.$auth_url.'">Connect your App.net account</a></p>';
 
@@ -195,7 +171,7 @@ function ptadn_conf() {
         echo '<p><img src="'.$json->data->avatar_image->url.'" width="60"></p>';
 
         echo '<p>You are authenticated on App.net with the username: '.$json->data->username.'</p>';
-        echo '<p><a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&code=reset">Disconnect from App.net</a></p>';
+        echo '<p><a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&token=reset">Disconnect from App.net</a></p>';
 
         echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'" method="post">';
 
@@ -312,7 +288,7 @@ function ptadn_admin_notice() {
 
     $options = ptadn_get_options();
 
-    if (current_user_can('manage_options') && empty($options['ptadn_token']) && !isset($_GET['code'])) {
+    if (current_user_can('manage_options') && empty($options['ptadn_token']) && !isset($_GET['token'])) {
 
         echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Update settings &rarr;</a></p></div>';
 
@@ -330,9 +306,6 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_token'])) $options['ptadn_token'] = null;
     if (!isset($options['ptadn_disabled'])) $options['ptadn_disabled'] = 0;
     if (!isset($options['ptadn_text'])) $options['ptadn_text'] = '{title} {link}';
-
-    $options['ptadn_key'] = 'u965Drddpmwb4LrfB792NcK8cnGen4Cm';
-    $options['ptadn_secret'] = 'dYVpAGzk25J3LEKJfKWpcZtDht7A8QNE';
 
     return $options;
 
