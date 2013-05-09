@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -23,6 +23,9 @@ Ping me on App.net: http://alpha.app.net/maximevalette
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.0.3 =
+* Removed the follow location parameter that messed things up with safe_mode.
 
 = 1.0.2 =
 * Prevents to send the post twice to ADN when it's published through XML-RPC.
