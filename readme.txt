@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -16,6 +16,8 @@ Nothing fancy here, but I'm open to suggestions.
 
 Ping me on App.net: http://alpha.app.net/maximevalette
 
+Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
+
 == Installation ==
 
 1. Copy the posts-to-adn folder into wp-content/plugins
@@ -23,6 +25,9 @@ Ping me on App.net: http://alpha.app.net/maximevalette
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.0.5 =
+* Added the {author} tag in the post format.
 
 = 1.0.4 =
 * New WordPress actions to handle published posts.

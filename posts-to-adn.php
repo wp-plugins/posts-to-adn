@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.0.4
+Version: 1.0.5
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -175,9 +175,9 @@ function ptadn_conf() {
         echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'" method="post">';
 
         echo '<h3><label for="ptadn_text">ADN Post format:</label></h3>';
-        echo '<p><input type="text" id="ptadn_text" name="ptadn_text" value="'.$options['ptadn_text'].'" style="width: 400px;" /></p>';
+        echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">'.$options['ptadn_text'].'</textarea></p>';
 
-        echo '<p>Variables: {title} for the blog title, {link} for the permalink.</p>';
+        echo '<p>Variables: {title} for the blog title, {link} for the permalink, {author} for the author.</p>';
 
         echo '<h3>Advanced Options</h3>';
 
@@ -188,6 +188,12 @@ function ptadn_conf() {
         echo '<p class="submit" style="text-align: left">';
         wp_nonce_field('ptadn', 'ptadn-admin');
         echo '<input type="submit" name="submit" value="'.__('Save').' &raquo;" /></p></form>';
+
+        echo '<h3>About the creator</h3>';
+
+        echo '<p>Ping me on App.net: <a href="http://alpha.app.net/maximevalette" target="_blank">maximevalette</a></p>';
+
+        echo '<p>My Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm</p>';
 
     }
 
@@ -225,8 +231,8 @@ function ptadn_posts_to_adn($postID) {
     if ($new) {
 
         $text = str_replace(
-            array('{title}', '{link}'),
-            array($post_info['postTitle'], $post_info['postLink']),
+            array('{title}', '{link}', '{author}'),
+            array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName']),
             $options['ptadn_text']
         );
 
@@ -249,6 +255,9 @@ function ptadn_post_info($postID) {
     $values['id'] = $postID;
     $values['postinfo'] = $post;
     $values['authId'] = $post->post_author;
+
+    $info = get_userdata($values['authId']);
+    $values['authorName'] = $info->user_nicename;
 
     $values['postDate'] = mysql2date("Y-m-d H:i:s", $post->post_date);
     $values['postModified'] = mysql2date("Y-m-d H:i:s", $post->post_modified);
