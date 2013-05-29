@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.0.6
+Version: 1.0.7
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -257,7 +257,7 @@ function ptadn_post_info($postID) {
     $values['authId'] = $post->post_author;
 
     $info = get_userdata($values['authId']);
-    $values['authorName'] = $info->user_nicename;
+    $values['authorName'] = $info->display_name;
 
     $values['postDate'] = mysql2date("Y-m-d H:i:s", $post->post_date);
     $values['postModified'] = mysql2date("Y-m-d H:i:s", $post->post_modified);
