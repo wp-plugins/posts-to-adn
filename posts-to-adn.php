@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.0.7
+Version: 1.0.8
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -23,7 +23,7 @@ function ptadn_config_page() {
 
 }
 
-function ptadn_api_call($url, $params = array(), $type='GET') {
+function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = null) {
 
     $options = ptadn_get_options();
     $json = array();
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET') {
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.8 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,14 +50,26 @@ function ptadn_api_call($url, $params = array(), $type='GET') {
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.8 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
+
+        if (!empty($jsonContent)) {
+
+            curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?access_token=' . $options['ptadn_token']);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonContent);
+
+        } else {
+
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $qs);
+
+        }
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_POST, count($params));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $qs);
 
         $data = curl_exec($ch);
         curl_close($ch);
@@ -65,6 +77,8 @@ function ptadn_api_call($url, $params = array(), $type='GET') {
         $json = json_decode($data);
 
     }
+
+    error_log($data);
 
     return $json;
 
@@ -177,7 +191,7 @@ function ptadn_conf() {
         echo '<h3><label for="ptadn_text">ADN Post format:</label></h3>';
         echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">'.$options['ptadn_text'].'</textarea></p>';
 
-        echo '<p>Variables: {title} for the blog title, {link} for the permalink, {author} for the author.</p>';
+        echo '<p>Variables: {title} for the blog title, {link} for the permalink, {author} for the author.<br>You can also use {linkedTitle} instead of {title} and {link} in order to use the link entity feature of App.net.</p>';
 
         echo '<h3>Advanced Options</h3>';
 
@@ -230,15 +244,40 @@ function ptadn_posts_to_adn($postID) {
 
     if ($new) {
 
+        //error_log('New post: '.$text);
+
         $text = str_replace(
             array('{title}', '{link}', '{author}'),
             array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName']),
             $options['ptadn_text']
         );
 
-        //error_log('New post: '.$text);
+        $pos = mb_strpos($text, '{linkedTitle}', 0, 'UTF-8');
 
-        ptadn_api_call('posts', array('text' => $text), 'POST');
+        if ($pos !== false) {
+
+            $text = str_replace('{linkedTitle}', $post_info['postTitle'], $text);
+
+            $jsonContent = array(
+                'text' => $text,
+                'entities' => array(
+                    'links' => array(
+                        array(
+                            'pos' => $pos,
+                            'len' => mb_strlen($post_info['postTitle'], 'UTF-8'),
+                            'url' => $post_info['postLink']
+                        )
+                    )
+                )
+            );
+
+            ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
+
+        } else {
+
+            ptadn_api_call('posts', array('text' => $text), 'POST');
+
+        }
 
     }
 

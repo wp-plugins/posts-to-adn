@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -25,6 +25,9 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.0.8 =
+* You can now use {linkedTitle} tag to use the link entity feature of ADN.
 
 = 1.0.7 =
 * Now using the Display Name field for the {author} tag.
