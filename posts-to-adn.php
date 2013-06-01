@@ -78,8 +78,6 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
 
     }
 
-    error_log($data);
-
     return $json;
 
 }
