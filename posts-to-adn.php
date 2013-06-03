@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.0.8
+Version: 1.0.9
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.8 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.9 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.8 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.9 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -186,12 +186,18 @@ function ptadn_conf() {
 
         echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'" method="post">';
 
-        echo '<h3><label for="ptadn_text">ADN Post format:</label></h3>';
+        echo '<h3><label for="ptadn_text">ADN Post format</label></h3>';
         echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">'.$options['ptadn_text'].'</textarea></p>';
 
-        echo '<p>Variables: {title} for the blog title, {link} for the permalink, {author} for the author.<br>You can also use {linkedTitle} instead of {title} and {link} in order to use the link entity feature of App.net.</p>';
+        echo '<h3>Variables</h3>';
+
+        echo '<ul><li>{title} for the blog title<li>{link} for the permalink<li>{author} for the author<li>{excerpt} for the first words of your post<li>{tags} for the tags of your article (with a #)</ul>';
+
+        echo '<p>You can also use {linkedTitle} instead of {title} and {link} in order to use the link entity feature of App.net.</p>';
 
         echo '<h3>Advanced Options</h3>';
+
+        echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
 
         echo '<p><input id="ptadn_disabled" name="ptadn_disabled" type="checkbox" value="1"';
         if ($options['ptadn_disabled'] == 1) echo ' checked';
@@ -242,11 +248,9 @@ function ptadn_posts_to_adn($postID) {
 
     if ($new) {
 
-        //error_log('New post: '.$text);
-
         $text = str_replace(
-            array('{title}', '{link}', '{author}'),
-            array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName']),
+            array('{title}', '{link}', '{author}', '{excerpt}', '{tags}'),
+            array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName'], ptadn_word_cut($post_info['postContent'], $options['ptadn_length']), $post_info['postHashtags']),
             $options['ptadn_text']
         );
 
@@ -273,6 +277,8 @@ function ptadn_posts_to_adn($postID) {
 
         } else {
 
+            // error_log('New post: '.$text);
+
             ptadn_api_call('posts', array('text' => $text), 'POST');
 
         }
@@ -286,6 +292,7 @@ function ptadn_posts_to_adn($postID) {
 function ptadn_post_info($postID) {
 
     $post = get_post($postID);
+    $tags = wp_get_post_tags($post->ID);
 
     $values = array();
 
@@ -310,6 +317,17 @@ function ptadn_post_info($postID) {
 
     $values['postStatus'] = $post->post_status;
     $values['postType'] = $post->post_type;
+    $values['postContent'] = trim(html_entity_decode(htmlspecialchars_decode(strip_tags($post->post_content_filtered)), ENT_COMPAT, get_option('blog_charset')));
+
+    $hashtags = array();
+
+    foreach ($tags as $tag) {
+
+        $hashtags[] = '#' . $tag->slug;
+
+    }
+
+    $values['postHashtags'] = implode(' ', $hashtags);
 
     return $values;
 
@@ -357,7 +375,20 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_token'])) $options['ptadn_token'] = null;
     if (!isset($options['ptadn_disabled'])) $options['ptadn_disabled'] = 0;
     if (!isset($options['ptadn_text'])) $options['ptadn_text'] = '{title} {link}';
+    if (!isset($options['ptadn_length'])) $options['ptadn_length'] = 100;
 
     return $options;
+
+}
+
+function ptadn_word_cut($string, $max_length) {
+
+    if (strlen($string) <= $max_length) return $string;
+
+    $string = mb_substr($string, 0, $max_length);
+    $pos = mb_strrpos($string, " ");
+
+    if ($pos === false) return mb_substr($string, 0, $max_length)."…";
+    return mb_substr($string, 0, $pos)."…";
 
 }
