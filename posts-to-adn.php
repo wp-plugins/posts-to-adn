@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.0.9
+Version: 1.1
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.9 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.0.9 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -120,6 +120,16 @@ function ptadn_conf() {
 
 		}
 
+        if (isset($_POST['ptadn_length'])) {
+
+            $ptadn_length = (int) $_POST['ptadn_length'];
+
+        } else {
+
+            $ptadn_length = 100;
+
+        }
+
         if (isset($_POST['ptadn_text'])) {
 
             $ptadn_text = $_POST['ptadn_text'];
@@ -132,6 +142,7 @@ function ptadn_conf() {
 
         $options['ptadn_disabled'] = $ptadn_disabled;
         $options['ptadn_text'] = $ptadn_text;
+        $options['ptadn_length'] = $ptadn_length;
 
 		update_option('ptadn', $options);
 
@@ -246,12 +257,22 @@ function ptadn_posts_to_adn($postID) {
 
     }
 
+    if (isset($_POST['ptadn_disable_post']) && $_POST['ptadn_disable_post'] == '1') {
+
+        $new = 0;
+
+    }
+
     if ($new) {
+
+        $text = (isset($_POST['ptadn_textarea'])) ? $_POST['ptadn_textarea'] : $options['ptadn_text'];
+
+        $excerpt = (empty($values['postExcerpt'])) ? $post_info['postContent'] : $post_info['postExcerpt'];
 
         $text = str_replace(
             array('{title}', '{link}', '{author}', '{excerpt}', '{tags}'),
-            array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName'], ptadn_word_cut($post_info['postContent'], $options['ptadn_length']), $post_info['postHashtags']),
-            $options['ptadn_text']
+            array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName'], ptadn_word_cut($excerpt, $options['ptadn_length']), $post_info['postHashtags']),
+            $text
         );
 
         $pos = mb_strpos($text, '{linkedTitle}', 0, 'UTF-8');
@@ -318,6 +339,7 @@ function ptadn_post_info($postID) {
     $values['postStatus'] = $post->post_status;
     $values['postType'] = $post->post_type;
     $values['postContent'] = trim(html_entity_decode(htmlspecialchars_decode(strip_tags($post->post_content_filtered)), ENT_COMPAT, get_option('blog_charset')));
+    $values['postExcerpt'] = trim(html_entity_decode(htmlspecialchars_decode(strip_tags($post->post_excerpt)), ENT_COMPAT, get_option('blog_charset')));
 
     $hashtags = array();
 
@@ -392,3 +414,32 @@ function ptadn_word_cut($string, $max_length) {
     return mb_substr($string, 0, $pos)."…";
 
 }
+
+function ptadn_meta_box() {
+
+    $options = ptadn_get_options();
+
+    wp_nonce_field('ptadn', 'ptadn-meta', false, true);
+
+    echo '<p style="margin-bottom: 0;"><textarea style="width: 100%; height: 60px; resize: vertical;" name="ptadn_textarea" id="ptadn_textarea">'.$options['ptadn_text'].'</textarea></p>';
+
+    echo '<p style="margin-top: 0.5em;"><input type="checkbox" name="ptadn_disable_post" id="ptadn_disable_post" value="1" onChange="var ta = document.getElementById(\'ptadn_textarea\'); if (document.getElementById(\'ptadn_disable_post\').checked) { ta.disabled = true; ta.style[\'opacity\'] = 0.5; } else { ta.disabled = false; ta.style[\'opacity\'] = 1; }" />';
+    echo ' <label for="ptadn_disable_post">Disable for this post</label></p>';
+
+    echo '<p style="text-align: right;"><a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Go to Posts to ADN settings</a> &rarr;</p>';
+
+}
+
+function ptadn_meta($type, $context) {
+
+    $screen = get_current_screen();
+
+    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && $screen->action == 'add') {
+
+        add_meta_box('ptadn', 'Posts to ADN', 'ptadn_meta_box', $type, 'side');
+
+    }
+
+}
+
+add_action('do_meta_boxes', 'ptadn_meta', 20, 2);

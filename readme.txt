@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.0.9
+Stable tag: 1.1
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -25,6 +25,13 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.1 =
+* New meta box on the side of a New Post view.
+* You can now customize the post format for every post.
+* You can now disable post to ADN for a single post.
+* The script now uses the Excerpt content if there's one.
+* Fixed a bug that prevented the excerpt length to be saved.
 
 = 1.0.9 =
 * Added an {excerpt} tag to display the first words of your article.
