@@ -88,7 +88,7 @@ function ptadn_conf() {
 
 	$updated = false;
 
-    if ($_GET['token']) {
+    if (isset($_GET['token']) && !empty($_GET['token'])) {
 
         if ($_GET['token'] == 'reset') {
 
@@ -162,7 +162,7 @@ function ptadn_conf() {
 
         $json = ptadn_api_call('users/me');
 
-        if (is_array($json->error) && count($json->error)) {
+        if (isset($json->error) && is_array($json->error) && count($json->error)) {
 
             echo '<div id="message" class="error"><p>';
             echo 'There was something wrong with your App.net authentication. Please retry.';
@@ -432,9 +432,11 @@ function ptadn_meta_box() {
 
 function ptadn_meta($type, $context) {
 
+    global $post;
+
     $screen = get_current_screen();
 
-    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && $screen->action == 'add') {
+    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || $post->post_status == 'draft')) {
 
         add_meta_box('ptadn', 'Posts to ADN', 'ptadn_meta_box', $type, 'side');
 
