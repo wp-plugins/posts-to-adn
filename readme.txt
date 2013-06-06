@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.1
+Stable tag: 1.1.1
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -25,6 +25,10 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.1.1 =
+* The custom post now works for scheduled posts.
+* Added a bit.ly authentication for shortened links.
 
 = 1.1 =
 * New meta box on the side of a New Post view.

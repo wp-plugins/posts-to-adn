@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.1
+Version: 1.1.1
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -87,6 +87,26 @@ function ptadn_conf() {
     $options = ptadn_get_options();
 
 	$updated = false;
+
+    if (isset($_GET['bitly_token']) && !empty($_GET['bitly_token'])) {
+
+        if ($_GET['bitly_token'] == 'reset') {
+
+            $options['ptadn_bitly_token'] = null;
+            $options['ptadn_bitly_login'] = null;
+
+        } else {
+
+            $options['ptadn_bitly_token'] = $_GET['bitly_token'];
+            $options['ptadn_bitly_login'] = $_GET['bitly_login'];
+
+        }
+
+        update_option('ptadn', $options);
+
+        $updated = true;
+
+    }
 
     if (isset($_GET['token']) && !empty($_GET['token'])) {
 
@@ -210,6 +230,24 @@ function ptadn_conf() {
 
         echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
 
+        echo '<p>Bit.ly URL shortening: ';
+
+        if (is_null($options['ptadn_bitly_login'])) {
+
+            $params = array(
+                'redirect_uri' => admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php')
+            );
+
+            echo '<a href="http://maxime.sh/triggers/bitly.php?'.http_build_query($params).'">Connect your Bit.ly account</a> &rarr;</p>';
+
+        } else {
+
+            echo 'Currently connected with '.$options['ptadn_bitly_login'].' — <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&bitly_token=reset">Disconnect</a></p>';
+
+        }
+
+        echo '</p>';
+
         echo '<p><input id="ptadn_disabled" name="ptadn_disabled" type="checkbox" value="1"';
         if ($options['ptadn_disabled'] == 1) echo ' checked';
         echo '/> <label for="ptadn_disabled">Disable auto posting to App.net</label></p>';
@@ -263,15 +301,59 @@ function ptadn_posts_to_adn($postID) {
 
     }
 
+    $customFieldDisable = get_post_custom_values('ptadn_disable_post', $post_info['postId']);
+
+    if (isset($customFieldDisable[0]) && $customFieldDisable[0] == '1') {
+
+        $new = 0;
+
+    }
+
     if ($new) {
 
-        $text = (isset($_POST['ptadn_textarea'])) ? $_POST['ptadn_textarea'] : $options['ptadn_text'];
+        $url = $post_info['postLink'];
+
+        if (!is_null($options['ptadn_bitly_token'])) {
+
+            $ch = curl_init();
+
+            $params = array(
+                'access_token' => $options['ptadn_bitly_token'],
+                'longUrl' => $url,
+            );
+
+            curl_setopt($ch, CURLOPT_URL, 'https://api-ssl.bitly.com/v3/shorten?' . http_build_query($params));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+            $data = curl_exec($ch);
+            curl_close($ch);
+
+            $json = json_decode($data);
+
+            if (is_numeric($json->status_code) && $json->status_code == 200) {
+                $url = $json->data->url;
+            }
+
+        }
+
+        $customFieldText = get_post_custom_values('ptadn_textarea', $post_info['postId']);
+
+        if (isset($customFieldText[0]) && !empty($customFieldText[0])) {
+
+            $text = $customFieldText[0];
+
+        } else {
+
+            $text = (isset($_POST['ptadn_textarea'])) ? $_POST['ptadn_textarea'] : $options['ptadn_text'];
+
+        }
 
         $excerpt = (empty($values['postExcerpt'])) ? $post_info['postContent'] : $post_info['postExcerpt'];
 
         $text = str_replace(
             array('{title}', '{link}', '{author}', '{excerpt}', '{tags}'),
-            array($post_info['postTitle'], $post_info['postLink'], $post_info['authorName'], ptadn_word_cut($excerpt, $options['ptadn_length']), $post_info['postHashtags']),
+            array($post_info['postTitle'], $url, $post_info['authorName'], ptadn_word_cut($excerpt, $options['ptadn_length']), $post_info['postHashtags']),
             $text
         );
 
@@ -288,7 +370,7 @@ function ptadn_posts_to_adn($postID) {
                         array(
                             'pos' => $pos,
                             'len' => mb_strlen($post_info['postTitle'], 'UTF-8'),
-                            'url' => $post_info['postLink']
+                            'url' => $url
                         )
                     )
                 )
@@ -301,6 +383,42 @@ function ptadn_posts_to_adn($postID) {
             // error_log('New post: '.$text);
 
             ptadn_api_call('posts', array('text' => $text), 'POST');
+
+        }
+
+        delete_post_meta($post_info['postId'], 'ptadn_textarea');
+        delete_post_meta($post_info['postId'], 'ptadn_disable_post');
+
+    }
+
+    return $postID;
+
+}
+
+function ptadn_save_posts_meta($postID) {
+
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE || wp_is_post_revision($postID) ) { return $postID; }
+    if (isset($_POST['_inline_edit'])) { return $postID; }
+
+    $options = ptadn_get_options();
+
+    if ($options['ptadn_disabled'] == 1) { return $postID; }
+
+    if (isset($_POST['ptadn_textarea'])) {
+
+        if (!add_post_meta($postID, 'ptadn_textarea', $_POST['ptadn_textarea'], true)) {
+
+            update_post_meta($postID, 'ptadn_textarea', $_POST['ptadn_textarea']);
+
+        }
+
+    }
+
+    if (isset($_POST['ptadn_disable_post'])) {
+
+        if (!add_post_meta($postID, 'ptadn_disable_post', $_POST['ptadn_disable_post'], true)) {
+
+            update_post_meta($postID, 'ptadn_disable_post', $_POST['ptadn_disable_post']);
 
         }
 
@@ -319,6 +437,7 @@ function ptadn_post_info($postID) {
 
     $values['id'] = $postID;
     $values['postinfo'] = $post;
+    $values['postId'] = $post->ID;
     $values['authId'] = $post->post_author;
 
     $info = get_userdata($values['authId']);
@@ -374,6 +493,7 @@ add_action('auto-draft_to_publish', 'ptadn_posts_to_adn');
 add_action('pending_to_publish', 'ptadn_posts_to_adn');
 add_action('private_to_publish', 'ptadn_posts_to_adn');
 add_action('future_to_publish', 'ptadn_posts_to_adn');
+add_action('save_post', 'ptadn_save_posts_meta');
 
 function ptadn_admin_notice() {
 
@@ -398,6 +518,8 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_disabled'])) $options['ptadn_disabled'] = 0;
     if (!isset($options['ptadn_text'])) $options['ptadn_text'] = '{title} {link}';
     if (!isset($options['ptadn_length'])) $options['ptadn_length'] = 100;
+    if (!isset($options['ptadn_bitly_login'])) $options['ptadn_bitly_login'] = null;
+    if (!isset($options['ptadn_bitly_token'])) $options['ptadn_bitly_token'] = null;
 
     return $options;
 
@@ -417,13 +539,26 @@ function ptadn_word_cut($string, $max_length) {
 
 function ptadn_meta_box() {
 
+    global $post;
+
     $options = ptadn_get_options();
 
     wp_nonce_field('ptadn', 'ptadn-meta', false, true);
 
-    echo '<p style="margin-bottom: 0;"><textarea style="width: 100%; height: 60px; resize: vertical;" name="ptadn_textarea" id="ptadn_textarea">'.$options['ptadn_text'].'</textarea></p>';
+    $customFieldText = get_post_custom_values('ptadn_textarea', $post->ID);
+    $customFieldDisable = get_post_custom_values('ptadn_disable_post', $post->ID);
 
-    echo '<p style="margin-top: 0.5em;"><input type="checkbox" name="ptadn_disable_post" id="ptadn_disable_post" value="1" onChange="var ta = document.getElementById(\'ptadn_textarea\'); if (document.getElementById(\'ptadn_disable_post\').checked) { ta.disabled = true; ta.style[\'opacity\'] = 0.5; } else { ta.disabled = false; ta.style[\'opacity\'] = 1; }" />';
+    $textarea = (isset($customFieldText[0])) ? $customFieldText[0] : $options['ptadn_text'];
+    $disable = $customFieldDisable[0];
+
+    echo '<p style="margin-bottom: 0;"><textarea style="width: 100%; height: 60px; resize: vertical;';
+    echo ($disable == '1') ? ' opacity: 0.5;" disabled="disabled' : null;
+    echo '" name="ptadn_textarea" id="ptadn_textarea">'.$textarea.'</textarea></p>';
+
+    echo '<p style="margin-top: 0.5em;"><input type="checkbox" name="ptadn_disable_post" id="ptadn_disable_post" value="1" onChange="var ta = document.getElementById(\'ptadn_textarea\'); if (document.getElementById(\'ptadn_disable_post\').checked) { ta.disabled = true; ta.style[\'opacity\'] = 0.5; } else { ta.disabled = false; ta.style[\'opacity\'] = 1; }" ';
+    echo ($disable == '1') ? 'checked' : null;
+    echo '/>';
+
     echo ' <label for="ptadn_disable_post">Disable for this post</label></p>';
 
     echo '<p style="text-align: right;"><a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Go to Posts to ADN settings</a> &rarr;</p>';
@@ -436,7 +571,9 @@ function ptadn_meta($type, $context) {
 
     $screen = get_current_screen();
 
-    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || $post->post_status == 'draft')) {
+    error_log($post->post_status);
+
+    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || in_array($post->post_status, array('draft', 'future', 'auto-draft')))) {
 
         add_meta_box('ptadn', 'Posts to ADN', 'ptadn_meta_box', $type, 'side');
 
