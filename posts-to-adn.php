@@ -349,7 +349,7 @@ function ptadn_posts_to_adn($postID) {
 
         }
 
-        $excerpt = (empty($values['postExcerpt'])) ? $post_info['postContent'] : $post_info['postExcerpt'];
+        $excerpt = (empty($post_info['postExcerpt'])) ? $post_info['postContent'] : $post_info['postExcerpt'];
 
         $text = str_replace(
             array('{title}', '{link}', '{author}', '{excerpt}', '{tags}'),
@@ -376,13 +376,13 @@ function ptadn_posts_to_adn($postID) {
                 )
             );
 
-            ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
+            // ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
 
         } else {
 
-            // error_log('New post: '.$text);
+            error_log('New post: '.$text);
 
-            ptadn_api_call('posts', array('text' => $text), 'POST');
+            // ptadn_api_call('posts', array('text' => $text), 'POST');
 
         }
 
@@ -570,8 +570,6 @@ function ptadn_meta($type, $context) {
     global $post;
 
     $screen = get_current_screen();
-
-    error_log($post->post_status);
 
     if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || in_array($post->post_status, array('draft', 'future', 'auto-draft')))) {
 
