@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.1.2
+Version: 1.2
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -160,9 +160,20 @@ function ptadn_conf() {
 
         }
 
+        if (is_numeric($_POST['ptadn_delay_days']) && is_numeric($_POST['ptadn_delay_hours']) && is_numeric($_POST['ptadn_delay_minutes'])) {
+
+            $ptadn_delay = $_POST['ptadn_delay_days'] * 86400 + $_POST['ptadn_delay_hours'] * 3600 + $_POST['ptadn_delay_minutes'] * 60;
+
+        } else {
+
+            $ptadn_delay = 0;
+
+        }
+
         $options['ptadn_disabled'] = $ptadn_disabled;
         $options['ptadn_text'] = $ptadn_text;
         $options['ptadn_length'] = $ptadn_length;
+        $options['ptadn_delay'] = $ptadn_delay;
 
 		update_option('ptadn', $options);
 
@@ -210,6 +221,16 @@ function ptadn_conf() {
 
     } else {
 
+        $delayDays = $delayHours = $delayMinutes = 0;
+
+        if ($options['ptadn_delay'] > 0) {
+
+            $delayDays = floor($options['ptadn_delay']/86400);
+            $delayHours = floor(($options['ptadn_delay']-$delayDays*86400)/3600);
+            $delayMinutes = floor(($options['ptadn_delay']-$delayDays*86400-$delayHours*3600)/60);
+
+        }
+
         echo '<p><img src="'.$json->data->avatar_image->url.'" width="60"></p>';
 
         echo '<p>You are authenticated on App.net with the username: '.$json->data->username.'</p>';
@@ -248,6 +269,10 @@ function ptadn_conf() {
 
         echo '</p>';
 
+        echo '<p><label>Delay the ADN post:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_days" value="'.$delayDays.'" /> days,';
+        echo ' <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_hours" value="'.$delayHours.'" /> hours,';
+        echo ' <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_minutes" value="'.$delayMinutes.'" /> minutes.</p>';
+
         echo '<p><input id="ptadn_disabled" name="ptadn_disabled" type="checkbox" value="1"';
         if ($options['ptadn_disabled'] == 1) echo ' checked';
         echo '/> <label for="ptadn_disabled">Disable auto posting to App.net</label></p>';
@@ -267,7 +292,7 @@ function ptadn_conf() {
 }
 
 // Posts to ADN when there is a new post
-function ptadn_posts_to_adn($postID) {
+function ptadn_posts_to_adn($postID, $force=false) {
 
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE || wp_is_post_revision($postID) ) { return $postID; }
     if (isset($_POST['_inline_edit'])) { return $postID; }
@@ -309,7 +334,15 @@ function ptadn_posts_to_adn($postID) {
 
     }
 
-    if ($new) {
+    if ($new || $force) {
+
+        if ($options['ptadn_delay'] > 0 && !$force) {
+
+            wp_schedule_single_event(time() + $options['ptadn_delay'], 'ptadn_event', array($postID, true));
+
+            return $postID;
+
+        }
 
         $url = $post_info['postLink'];
 
@@ -499,6 +532,8 @@ add_action('private_to_publish', 'ptadn_posts_to_adn');
 add_action('future_to_publish', 'ptadn_posts_to_adn');
 add_action('save_post', 'ptadn_save_posts_meta');
 
+add_action('ptadn_event', 'ptadn_posts_to_adn', 10, 2);
+
 function ptadn_admin_notice() {
 
     $options = ptadn_get_options();
@@ -524,6 +559,7 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_length'])) $options['ptadn_length'] = 100;
     if (!isset($options['ptadn_bitly_login'])) $options['ptadn_bitly_login'] = null;
     if (!isset($options['ptadn_bitly_token'])) $options['ptadn_bitly_token'] = null;
+    if (!isset($options['ptadn_delay'])) $options['ptadn_delay'] = 0;
 
     return $options;
 
