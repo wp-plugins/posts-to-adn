@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.1.1
+Version: 1.1.2
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -376,13 +376,17 @@ function ptadn_posts_to_adn($postID) {
                 )
             );
 
-            // ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
+            if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
+                ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
+            }
 
         } else {
 
-            error_log('New post: '.$text);
-
-            // ptadn_api_call('posts', array('text' => $text), 'POST');
+            if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
+                ptadn_api_call('posts', array('text' => $text), 'POST');
+            } else {
+                error_log('New post: '.$text);
+            }
 
         }
 
