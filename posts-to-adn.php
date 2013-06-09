@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.2
+Version: 1.2.1
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -78,6 +78,12 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
 
     }
 
+    if (isset($json->error_message) && !empty($json->error_message)) {
+
+        $options['ptadn_error'] = $json->error_message;
+
+    }
+
     return $json;
 
 }
@@ -87,6 +93,38 @@ function ptadn_conf() {
     $options = ptadn_get_options();
 
 	$updated = false;
+
+    if (isset($_GET['clear_error']) && $_GET['clear_error'] == '1') {
+
+        $options['ptadn_error'] = null;
+
+        update_option('ptadn', $options);
+
+        $updated = true;
+
+    }
+
+    if (isset($_GET['delete_schedule'])) {
+
+        $cron = _get_cron_array();
+
+        foreach ($cron as $timestamp => $cronhooks) {
+            foreach ((array) $cronhooks as $hook => $events) {
+                foreach ((array) $events as $key => $event) {
+
+                    if ($_GET['delete_schedule'] == $key) {
+
+                        wp_unschedule_event($timestamp, 'ptadn_event', $event['args']);
+
+                    }
+
+                }
+            }
+        }
+
+        $updated = true;
+
+    }
 
     if (isset($_GET['bitly_token']) && !empty($_GET['bitly_token'])) {
 
@@ -281,6 +319,44 @@ function ptadn_conf() {
         wp_nonce_field('ptadn', 'ptadn-admin');
         echo '<input type="submit" name="submit" value="'.__('Save').' &raquo;" /></p></form>';
 
+        $cron = _get_cron_array();
+
+        foreach ($cron as $timestamp => $cronhooks) {
+            foreach ((array) $cronhooks as $hook => $events) {
+                if ($hook != 'ptadn_event') {
+                    unset($cron[$timestamp][$hook]);
+                    continue;
+                }
+                foreach ((array) $events as $key => $event) {
+                    $cron[ $timestamp ][ $hook ][ $key ][ 'date' ] = date_i18n('Y/m/d \a\t g:ia', $timestamp);
+                }
+            }
+            if (count($cron[$timestamp]) == 0) {
+                unset($cron[$timestamp]);
+            }
+        }
+
+        if (count($cron) > 0) {
+
+            echo '<h3>Scheduled ADN posts</h3>';
+
+            echo '<ul>';
+
+            foreach ($cron as $timestamp => $cronhooks) {
+                foreach ($cronhooks as $hook => $events) {
+                    foreach ($events as $key => $event) {
+
+                        $cronPost = $event['args'][0];
+                        echo '<li><a href="'.$cronPost->guid.'" target="_blank">'.$cronPost->post_title.'</a>: Will be posted on '.$event['date'].' — <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&delete_schedule='.$key.'">Delete</a></li>';
+
+                    }
+                }
+            }
+
+            echo '</ul>';
+
+        }
+
         echo '<h3>About the creator</h3>';
 
         echo '<p>Ping me on App.net: <a href="http://alpha.app.net/maximevalette" target="_blank">maximevalette</a></p>';
@@ -338,7 +414,7 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
         if ($options['ptadn_delay'] > 0 && !$force) {
 
-            wp_schedule_single_event(time() + $options['ptadn_delay'], 'ptadn_event', array($postID, true));
+            wp_schedule_single_event(current_time('timestamp') + $options['ptadn_delay'], 'ptadn_event', array($postID, true));
 
             return $postID;
 
@@ -538,9 +614,17 @@ function ptadn_admin_notice() {
 
     $options = ptadn_get_options();
 
-    if (current_user_can('manage_options') && empty($options['ptadn_token']) && !isset($_GET['token'])) {
+    if (current_user_can('manage_options')) {
 
-        echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Update settings &rarr;</a></p></div>';
+        if (empty($options['ptadn_token']) && !isset($_GET['token'])) {
+
+            echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Update settings &rarr;</a></p></div>';
+
+        } elseif (!empty($options['ptadn_error'])) {
+
+            echo '<div class="error"><p>Warning: Your last App.net API call returned an error: '.$options['ptadn_error'].'. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&clear_error=1">Clear and go to settings &rarr;</a></p></div>';
+
+        }
 
     }
 
@@ -560,6 +644,7 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_bitly_login'])) $options['ptadn_bitly_login'] = null;
     if (!isset($options['ptadn_bitly_token'])) $options['ptadn_bitly_token'] = null;
     if (!isset($options['ptadn_delay'])) $options['ptadn_delay'] = 0;
+    if (!isset($options['ptadn_error'])) $options['ptadn_error'] = null;
 
     return $options;
 

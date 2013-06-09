@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.2
+Stable tag: 1.2.1
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -25,6 +25,9 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.2.1 =
+* You can now view and delete your delayed ADN posts.
 
 = 1.2 =
 * Added an option to delay your posts to ADN.
