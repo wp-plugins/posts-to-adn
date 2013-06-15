@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.2.1
+Version: 1.3
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.2.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
 
         if (!empty($jsonContent)) {
@@ -78,9 +78,11 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
 
     }
 
-    if (isset($json->error_message) && !empty($json->error_message)) {
+    if (isset($json->meta->error_message) && !empty($json->meta->error_message)) {
 
-        $options['ptadn_error'] = $json->error_message;
+        $options['ptadn_error'] = $json->meta->error_message;
+
+        update_option('ptadn', $options);
 
     }
 
@@ -168,6 +170,16 @@ function ptadn_conf() {
 
 		check_admin_referer('ptadn', 'ptadn-admin');
 
+        if (isset($_POST['ptadn_thumbnail'])) {
+
+            $ptadn_thumbnail = $_POST['ptadn_thumbnail'];
+
+        } else {
+
+            $ptadn_thumbnail = 0;
+
+        }
+
 		if (isset($_POST['ptadn_disabled'])) {
 
             $ptadn_disabled = $_POST['ptadn_disabled'];
@@ -208,6 +220,7 @@ function ptadn_conf() {
 
         }
 
+        $options['ptadn_thumbnail'] = $ptadn_thumbnail;
         $options['ptadn_disabled'] = $ptadn_disabled;
         $options['ptadn_text'] = $ptadn_text;
         $options['ptadn_length'] = $ptadn_length;
@@ -286,6 +299,10 @@ function ptadn_conf() {
         echo '<p>You can also use {linkedTitle} instead of {title} and {link} in order to use the link entity feature of App.net.</p>';
 
         echo '<h3>Advanced Options</h3>';
+
+        echo '<p><input id="ptadn_thumbnail" name="ptadn_thumbnail" type="checkbox" value="1"';
+        if ($options['ptadn_thumbnail'] == 1) echo ' checked';
+        echo '/> <label for="ptadn_thumbnail">Also send the Featured Image for the post if there is one</label></p>';
 
         echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
 
@@ -466,6 +483,10 @@ function ptadn_posts_to_adn($postID, $force=false) {
             $text
         );
 
+        $jsonContent = array(
+            'text' => $text
+        );
+
         $pos = mb_strpos($text, '{linkedTitle}', 0, 'UTF-8');
 
         if ($pos !== false) {
@@ -485,18 +506,39 @@ function ptadn_posts_to_adn($postID, $force=false) {
                 )
             );
 
-            if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
-                ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
+        }
+
+        if ($options['ptadn_thumbnail'] == '1') {
+
+            $img = get_the_post_thumbnail($post_info['postId']);
+
+            preg_match('/width="([^"]+)"/', $img, $width);
+            preg_match('/height="([^"]+)"/', $img, $height);
+            preg_match('/src="([^"]+)"/', $img, $src);
+
+            if (strlen($width[1]) && strlen($height[1]) && strlen($src[1])) {
+
+                $jsonContent['annotations'] = array(
+                    array(
+                        'type' => 'net.app.core.oembed',
+                        'value' => array(
+                            'version' => '1.0',
+                            'type' => 'photo',
+                            'width' => $width[1],
+                            'height' => $height[1],
+                            'url' => $src[1]
+                        )
+                    )
+                );
+
             }
 
+        }
+
+        if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
+            ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
         } else {
-
-            if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
-                ptadn_api_call('posts', array('text' => $text), 'POST');
-            } else {
-                error_log('New post: '.$text);
-            }
-
+            error_log('New post: '.json_encode($jsonContent));
         }
 
         delete_post_meta($post_info['postId'], 'ptadn_textarea');
@@ -645,6 +687,7 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_bitly_token'])) $options['ptadn_bitly_token'] = null;
     if (!isset($options['ptadn_delay'])) $options['ptadn_delay'] = 0;
     if (!isset($options['ptadn_error'])) $options['ptadn_error'] = null;
+    if (!isset($options['ptadn_thumbnail'])) $options['ptadn_thumbnail'] = null;
 
     return $options;
 
