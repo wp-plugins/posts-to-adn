@@ -733,7 +733,7 @@ function ptadn_admin_notice() {
 
             echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Update settings &rarr;</a></p></div>';
 
-        } elseif ($options['ptadn_files_scope'] === false) {
+        } elseif (!isset($_GET['token']) && $options['ptadn_files_scope'] === false) {
 
             $json = ptadn_api_call('token');
 
@@ -752,7 +752,7 @@ function ptadn_admin_notice() {
 
             }
 
-        } elseif (!empty($options['ptadn_error'])) {
+        } elseif (!isset($_GET['clear_error']) && !empty($options['ptadn_error'])) {
 
             echo '<div class="error"><p>Warning: Your last App.net API call returned an error: '.$options['ptadn_error'].'. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&clear_error=1">Clear and go to settings &rarr;</a></p></div>';
 
