@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.3
+Stable tag: 1.3.1
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -33,6 +33,10 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.3.1 =
+* Now using the App.net Files API for the image annotation.
+* Using WordPress thumbnail fallback if the Featured Image is not set.
 
 = 1.3 =
 * Added the ability to post the Featured Image on ADN.

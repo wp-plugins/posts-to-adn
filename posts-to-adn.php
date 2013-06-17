@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.3
+Version: 1.3.1
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -28,16 +28,16 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
     $options = ptadn_get_options();
     $json = array();
 
-    $params['access_token'] = $options['ptadn_token'];
-
-    $qs = http_build_query($params, '', '&');
-
     if ($type == 'GET') {
+
+        $params['access_token'] = $options['ptadn_token'];
+
+        $qs = http_build_query($params, '', '&');
 
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,26 +50,25 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
-
-        if (!empty($jsonContent)) {
-
-            curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?access_token=' . $options['ptadn_token']);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-type: application/json'));
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonContent);
-
-        } else {
-
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $qs);
-
-        }
-
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_POST, count($params));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+        if (!empty($jsonContent)) {
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Bearer '.$options['ptadn_token'], 'Content-type: application/json'));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonContent);
+
+        } else {
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: Bearer '.$options['ptadn_token']));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+
+        }
 
         $data = curl_exec($ch);
         curl_close($ch);
@@ -83,6 +82,12 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $options['ptadn_error'] = $json->meta->error_message;
 
         update_option('ptadn', $options);
+
+    }
+
+    if ($_SERVER['SERVER_NAME'] == 'wordpress.lan') {
+
+        error_log('API: '.$data);
 
     }
 
@@ -510,33 +515,99 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
         if ($options['ptadn_thumbnail'] == '1') {
 
-            $img = get_the_post_thumbnail($post_info['postId']);
+            $postImageId = get_post_thumbnail_id($post_info['postId']);
 
-            preg_match('/width="([^"]+)"/', $img, $width);
-            preg_match('/height="([^"]+)"/', $img, $height);
-            preg_match('/src="([^"]+)"/', $img, $src);
+            if ($postImageId) {
+                $thumbnail = wp_get_attachment_image_src($postImageId, 'large', false);
+                if ($thumbnail) {
+                    $src = $thumbnail[0];
+                }
+            }
 
-            if (strlen($width[1]) && strlen($height[1]) && strlen($src[1])) {
+            if (isset($src)) {
 
-                $jsonContent['annotations'] = array(
-                    array(
-                        'type' => 'net.app.core.oembed',
-                        'value' => array(
-                            'version' => '1.0',
-                            'type' => 'photo',
-                            'width' => $width[1],
-                            'height' => $height[1],
-                            'url' => $src[1]
-                        )
-                    )
-                );
+                preg_match('/\.([a-z]+)$/i', $src, $r);
+                $fileExt = strtolower($r[1]);
+
+                switch ($fileExt) {
+
+                    case 'jpg':
+                    case 'jpeg':
+                        $fileType = 'jpeg';
+                        break;
+
+                    case 'gif':
+                        $fileType = 'gif';
+                        break;
+
+                    case 'png':
+                        $fileType = 'png';
+                        break;
+
+                    default:
+                        $fileType = 'png';
+                        break;
+
+                }
+
+                $ch = curl_init();
+                $fileName = __DIR__ . '/' . uniqid() . '.' . $fileExt;
+
+                curl_setopt($ch, CURLOPT_URL, $src);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+                $data = @curl_exec($ch);
+                @curl_close($ch);
+
+                if (isset($data) && !empty($data) && @file_put_contents($fileName, $data) !== false) {
+
+                    $fileJson = ptadn_api_call('files', array(
+                            'public' => true,
+                            'type' => 'com.maximevalette.posts_to_adn',
+                            'name' => basename($src),
+                            'content' => '@' . $fileName . ';type=image/' . $fileType
+                        ), 'POST');
+
+                    if (is_string($fileJson->data->id)) {
+
+                        $jsonContent['annotations'] = array(
+                            array(
+                                'type' => 'net.app.core.oembed',
+                                'value' => array(
+                                    '+net.app.core.file' => array(
+                                        'file_id' => $fileJson->data->id,
+                                        'file_token' => $fileJson->data->file_token,
+                                        'format' => 'oembed'
+                                    )
+                                )
+                            ),
+                            array(
+                                'type' => 'net.app.core.attachments',
+                                'value' => array(
+                                    '+net.app.core.file_list' => array(
+                                        array(
+                                            'file_id' => $fileJson->data->id,
+                                            'file_token' => $fileJson->data->file_token,
+                                            'format' => 'metadata'
+                                        )
+                                    )
+                                )
+                            )
+                        );
+
+                    }
+
+                    @unlink($fileName);
+
+                }
 
             }
 
         }
 
         if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
-            ptadn_api_call('posts', array(), 'POST', json_encode($jsonContent));
+            ptadn_api_call('posts?include_post_annotations=1', array(), 'POST', json_encode($jsonContent));
         } else {
             error_log('New post: '.json_encode($jsonContent));
         }
@@ -662,6 +733,25 @@ function ptadn_admin_notice() {
 
             echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Update settings &rarr;</a></p></div>';
 
+        } elseif ($options['ptadn_files_scope'] === false) {
+
+            $json = ptadn_api_call('token');
+
+            if (is_array($json->data->scopes)) {
+
+                if (!in_array('files', $json->data->scopes)) {
+
+                    echo '<div class="error"><p>Warning: You should disconnect and reconnect your App.net account to authorize the Files scope. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'">Update settings &rarr;</a></p></div>';
+
+                } else {
+
+                    $options['ptadn_files_scope'] = true;
+                    update_option('ptadn', $options);
+
+                }
+
+            }
+
         } elseif (!empty($options['ptadn_error'])) {
 
             echo '<div class="error"><p>Warning: Your last App.net API call returned an error: '.$options['ptadn_error'].'. <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&clear_error=1">Clear and go to settings &rarr;</a></p></div>';
@@ -688,6 +778,7 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_delay'])) $options['ptadn_delay'] = 0;
     if (!isset($options['ptadn_error'])) $options['ptadn_error'] = null;
     if (!isset($options['ptadn_thumbnail'])) $options['ptadn_thumbnail'] = null;
+    if (!isset($options['ptadn_files_scope'])) $options['ptadn_files_scope'] = false;
 
     return $options;
 
