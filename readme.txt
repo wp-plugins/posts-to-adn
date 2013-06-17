@@ -1,0 +1,93 @@
+=== Posts to ADN ===
+Contributors: maximevalette
+Donate link: http://maxime.sh/paypal
+Tags: adn, app.net, autopost, posting, post
+Requires at least: 3.0
+Tested up to: 3.5.1
+Stable tag: 1.3.1
+
+Automatically posts your new blog articles to your App.net account.
+
+== Description ==
+
+Every time you publish a new article, a new post is created on your App.net account.
+
+Current features:
+- Format your post with 6 variables
+- Link shortening with bit.ly
+- Specify an excerpt length
+- Add a delay for your post to ADN
+- Send the Featured Image with your post
+- Per-post customization
+
+I'm open to suggestions.
+
+Ping me on App.net: http://alpha.app.net/maximevalette
+
+Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
+
+== Installation ==
+
+1. Copy the posts-to-adn folder into wp-content/plugins
+2. Activate the plugin through the Plugins menu
+3. Configure your account from the new Posts to ADN Settings submenu
+
+== Changelog ==
+
+= 1.3.1 =
+* Now using the App.net Files API for the image annotation.
+* Using WordPress thumbnail fallback if the Featured Image is not set.
+
+= 1.3 =
+* Added the ability to post the Featured Image on ADN.
+
+= 1.2.1 =
+* You can now view and delete your delayed ADN posts.
+
+= 1.2 =
+* Added an option to delay your posts to ADN.
+
+= 1.1.2 =
+* Fixed a bug that prevented the post in some cases.
+
+= 1.1.1 =
+* The custom post now works for scheduled posts.
+* Added a bit.ly authentication for shortened links.
+
+= 1.1 =
+* New meta box on the side of a New Post view.
+* You can now customize the post format for every post.
+* You can now disable post to ADN for a single post.
+* The script now uses the Excerpt content if there's one.
+* Fixed a bug that prevented the excerpt length to be saved.
+
+= 1.0.9 =
+* Added an {excerpt} tag to display the first words of your article.
+* Added a {tags} tag (you see what I did there).
+
+= 1.0.8 =
+* You can now use {linkedTitle} tag to use the link entity feature of ADN.
+
+= 1.0.7 =
+* Now using the Display Name field for the {author} tag.
+
+= 1.0.6 =
+* Minor bugfix.
+
+= 1.0.5 =
+* Added the {author} tag in the post format.
+
+= 1.0.4 =
+* New WordPress actions to handle published posts.
+
+= 1.0.3 =
+* Removed the follow location parameter that messed things up with safe_mode.
+
+= 1.0.2 =
+* Prevents to send the post twice to ADN when it's published through XML-RPC.
+
+= 1.0.1 =
+* Added a third party server to handle the App.net OAuth.
+
+= 1.0 =
+* First version. Enjoy!
