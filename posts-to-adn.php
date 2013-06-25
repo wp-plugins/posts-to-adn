@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.3.1
+Version: 1.3.2
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -401,6 +401,8 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
     $post_info = ptadn_post_info($postID);
     $type = $post_info['postType'];
+
+    if ($post_info['postType'] != 'post') { return $postID; }
 
     if ($type == 'future') {
 
@@ -830,7 +832,7 @@ function ptadn_meta($type, $context) {
 
     $screen = get_current_screen();
 
-    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || in_array($post->post_status, array('draft', 'future', 'auto-draft')))) {
+    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || in_array($post->post_status, array('draft', 'future', 'auto-draft', 'pending')))) {
 
         add_meta_box('ptadn', 'Posts to ADN', 'ptadn_meta_box', $type, 'side');
 
