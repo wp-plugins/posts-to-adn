@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.3.2
+Version: 1.3.3
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.2 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -225,11 +225,22 @@ function ptadn_conf() {
 
         }
 
+        if (is_array($_POST['ptadn_types'])) {
+
+            $ptadn_types = $_POST['ptadn_types'];
+
+        } else {
+
+            $ptadn_types = array();
+
+        }
+
         $options['ptadn_thumbnail'] = $ptadn_thumbnail;
         $options['ptadn_disabled'] = $ptadn_disabled;
         $options['ptadn_text'] = $ptadn_text;
         $options['ptadn_length'] = $ptadn_length;
         $options['ptadn_delay'] = $ptadn_delay;
+        $options['ptadn_types'] = $ptadn_types;
 
 		update_option('ptadn', $options);
 
@@ -311,6 +322,30 @@ function ptadn_conf() {
 
         echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
 
+        echo '<p>Send a post for these post types:</p>';
+
+        $postTypes = get_post_types(array('public' => true), 'names');
+
+        echo '<ul style="margin-left: 10px;">';
+
+        foreach ($postTypes as $postType) {
+
+            if (in_array($postType, array('attachment', 'nav_menu_item', 'revision'))) {
+                continue;
+            }
+
+            echo '<li><input type="checkbox" name="ptadn_types[]" value="' . $postType . '" id="ptype_' . $postType . '"';
+
+            if (in_array($postType, $options['ptadn_types'])) {
+                echo ' checked';
+            }
+
+            echo '> <label for="ptype_' . $postType . '">' . $postType . '</label></li>';
+
+        }
+
+        echo '</ul>';
+
         echo '<p>Bit.ly URL shortening: ';
 
         if (is_null($options['ptadn_bitly_login'])) {
@@ -350,7 +385,7 @@ function ptadn_conf() {
                     continue;
                 }
                 foreach ((array) $events as $key => $event) {
-                    $cron[ $timestamp ][ $hook ][ $key ][ 'date' ] = date_i18n('Y/m/d \a\t g:ia', $timestamp);
+                    $cron[ $timestamp ][ $hook ][ $key ][ 'date' ] = date_i18n('Y/m/d \a\t g:ia', $timestamp + (get_option('gmt_offset') * 3600), 1);
                 }
             }
             if (count($cron[$timestamp]) == 0) {
@@ -402,7 +437,7 @@ function ptadn_posts_to_adn($postID, $force=false) {
     $post_info = ptadn_post_info($postID);
     $type = $post_info['postType'];
 
-    if ($post_info['postType'] != 'post') { return $postID; }
+    if (!in_array($post_info['postType'], $options['ptadn_types'])) { return $postID; }
 
     if ($type == 'future') {
 
@@ -438,7 +473,7 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
         if ($options['ptadn_delay'] > 0 && !$force) {
 
-            wp_schedule_single_event(current_time('timestamp') + $options['ptadn_delay'], 'ptadn_event', array($postID, true));
+            wp_schedule_single_event(time() + $options['ptadn_delay'], 'ptadn_event', array($postID, true));
 
             return $postID;
 
@@ -781,6 +816,7 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_error'])) $options['ptadn_error'] = null;
     if (!isset($options['ptadn_thumbnail'])) $options['ptadn_thumbnail'] = null;
     if (!isset($options['ptadn_files_scope'])) $options['ptadn_files_scope'] = false;
+    if (!isset($options['ptadn_types'])) $options['ptadn_types'] = array('post');
 
     return $options;
 
@@ -830,9 +866,11 @@ function ptadn_meta($type, $context) {
 
     global $post;
 
+    $options = ptadn_get_options();
+
     $screen = get_current_screen();
 
-    if ($context == 'side' && in_array($type, array_keys(get_post_types())) && ($screen->action == 'add' || in_array($post->post_status, array('draft', 'future', 'auto-draft', 'pending')))) {
+    if ($context == 'side' && in_array($type, array_keys($options['ptadn_types'])) && ($screen->action == 'add' || in_array($post->post_status, array('draft', 'future', 'auto-draft', 'pending')))) {
 
         add_meta_box('ptadn', 'Posts to ADN', 'ptadn_meta_box', $type, 'side');
 

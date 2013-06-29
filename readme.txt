@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -13,12 +13,13 @@ Automatically posts your new blog articles to your App.net account.
 Every time you publish a new article, a new post is created on your App.net account.
 
 Current features:
-- Format your post with 6 variables
-- Link shortening with bit.ly
-- Specify an excerpt length
-- Add a delay for your post to ADN
-- Send the Featured Image with your post
-- Per-post customization
+
+* Format your post with 6 variables
+* Link shortening with bit.ly
+* Specify an excerpt length
+* Add a delay for your post to ADN
+* Send the Featured Image with your post
+* Per-post customization
 
 I'm open to suggestions.
 
@@ -33,6 +34,10 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.3.3 =
+* You can now chose multiple post types instead of only "post".
+* Fixed a timezone bug with the scheduled posts.
 
 = 1.3.2 =
 * Added the box for Pending Review posts.
