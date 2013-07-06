@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.3.3
+Version: 1.3.4
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.4 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.3 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.3.4 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -519,6 +519,8 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
         $excerpt = (empty($post_info['postExcerpt'])) ? $post_info['postContent'] : $post_info['postExcerpt'];
 
+        error_log(json_encode(array($post_info['postContent'], $post_info['postExcerpt'])));
+
         $text = str_replace(
             array('{title}', '{link}', '{author}', '{excerpt}', '{tags}'),
             array($post_info['postTitle'], $url, $post_info['authorName'], ptadn_word_cut($excerpt, $options['ptadn_length']), $post_info['postHashtags']),
@@ -720,7 +722,7 @@ function ptadn_post_info($postID) {
 
     $values['postStatus'] = $post->post_status;
     $values['postType'] = $post->post_type;
-    $values['postContent'] = trim(html_entity_decode(htmlspecialchars_decode(strip_tags($post->post_content_filtered)), ENT_COMPAT, get_option('blog_charset')));
+    $values['postContent'] = trim(html_entity_decode(htmlspecialchars_decode(strip_tags($post->post_content)), ENT_COMPAT, get_option('blog_charset')));
     $values['postExcerpt'] = trim(html_entity_decode(htmlspecialchars_decode(strip_tags($post->post_excerpt)), ENT_COMPAT, get_option('blog_charset')));
 
     $hashtags = array();
