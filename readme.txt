@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.3.4
+Stable tag: 1.4
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -25,8 +25,6 @@ I'm open to suggestions.
 
 Ping me on App.net: http://alpha.app.net/maximevalette
 
-Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
-
 == Installation ==
 
 1. Copy the posts-to-adn folder into wp-content/plugins
@@ -34,6 +32,12 @@ Bitcoin address: 1MriEUP5BVh9AY7uoHSqyGMsyyD31fWmNm
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.4 =
+* You can now post to ADN already published posts.
+* Added YOURLS support for link shortening.
+* Now using the new App.net Button to authenticate.
+* Added a anti-flood detection to prevent ADN spam.
 
 = 1.3.4 =
 * Fixed a bug where the excerpt didn't show up on ADN.
