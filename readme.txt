@@ -15,11 +15,12 @@ Every time you publish a new article, a new post is created on your App.net acco
 Current features:
 
 * Format your post with 6 variables
-* Link shortening with bit.ly
+* Link shortening with bit.ly and YOURLS
 * Specify an excerpt length
 * Add a delay for your post to ADN
 * Send the Featured Image with your post
 * Per-post customization
+* Publish old posts with the box in the compose view
 
 I'm open to suggestions.
 
