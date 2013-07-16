@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.4
+Version: 1.4.1
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.4 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.4.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.4 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.4.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -478,25 +478,27 @@ function ptadn_posts_to_adn($postID, $force=false) {
     if ($options['ptadn_disabled'] == 1) { return $postID; }
 
     $post_info = ptadn_post_info($postID);
-    $type = $post_info['postType'];
 
     if (!in_array($post_info['postType'], $options['ptadn_types'])) { return $postID; }
 
-    if ($type == 'future') {
+    /*if ($post_info['postType'] == 'future') {
 
         $new = 1;
 
     } else {
 
         $new = (int) ptadn_date_compare($post_info['postModified'], $post_info['postDate']);
+        error_log($post_info['postModified'].'-'.$post_info['postDate']);
 
-    }
+    }*/
 
-    if ($new == 0 && (isset($_POST['edit_date']) && $_POST['edit_date'] == 1 && !isset($_POST['save']))) {
+    $new = 1;
+
+    /*if (isset($_POST['edit_date']) && $_POST['edit_date'] == 1 && !isset($_POST['save'])) {
 
         $new = 1;
 
-    }
+    }*/
 
     if (isset($_POST['ptadn_disable_post']) && $_POST['ptadn_disable_post'] == '1') {
 
@@ -938,9 +940,7 @@ function ptadn_meta_box($post, $data) {
 
     if ($data['args']['oldPost']) {
 
-        echo '<input type="hidden" name="ptadn_publish_now" value="1">';
-
-        echo '<p style="text-align: center; margin-bottom: 20px;"><input type="submit" value="Publish the post on ADN" class="button"></p>';
+        echo '<p style="text-align: center; margin-bottom: 20px;"><input type="submit" name="ptadn_publish_now" value="Publish the post on ADN" class="button"></p>';
 
     } else {
 
