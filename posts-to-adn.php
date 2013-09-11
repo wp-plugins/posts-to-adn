@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/extend/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.4.1
+Version: 1.5
 */
 
 add_action('admin_menu', 'ptadn_config_page');
@@ -37,7 +37,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.4.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.5 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
         $data = curl_exec($ch);
@@ -50,7 +50,7 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, 'https://alpha-api.app.net/stream/0/'.$url);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.4.1 (http://wordpress.org/extend/plugins/posts-to-adn/)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Posts to ADN/1.5 (http://wordpress.org/extend/plugins/posts-to-adn/)');
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
@@ -92,6 +92,52 @@ function ptadn_api_call($url, $params = array(), $type='GET', $jsonContent = nul
     }
 
     return $json;
+
+}
+
+function ptadn_conf_tabs($current = 'post') {
+
+    $tabs = array(
+        'post' => 'Post Format',
+        'settings' => 'Settings',
+        'alerts' => 'Alerts'
+    );
+
+    $cron = _get_cron_array();
+
+    foreach ($cron as $timestamp => $cronhooks) {
+        foreach ((array) $cronhooks as $hook => $events) {
+            if ($hook != 'ptadn_event') {
+                unset($cron[$timestamp][$hook]);
+                continue;
+            }
+            foreach ((array) $events as $key => $event) {
+                $cron[ $timestamp ][ $hook ][ $key ][ 'date' ] = date_i18n('Y/m/d \a\t g:ia', $timestamp + (get_option('gmt_offset') * 3600), 1);
+            }
+        }
+        if (count($cron[$timestamp]) == 0) {
+            unset($cron[$timestamp]);
+        }
+    }
+
+    if (count($cron) > 0) {
+
+        $tabs['schedule'] = 'Schedule';
+
+    }
+
+    echo '<div id="icon-themes" class="icon32"><br></div>';
+
+    echo '<h2 class="nav-tab-wrapper">';
+
+    foreach ($tabs as $tab => $name) {
+
+        $class = ($tab == $current) ? ' nav-tab-active' : '';
+        echo "<a class='nav-tab".$class."' href='".admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php')."&tab=".$tab."'>".$name."</a>";
+
+    }
+
+    echo '</h2>';
 
 }
 
@@ -175,113 +221,180 @@ function ptadn_conf() {
 
     }
 
+    $tab = (isset($_GET['tab'])) ? $_GET['tab'] : 'post';
+
 	if (isset($_POST['submit'])) {
 
 		check_admin_referer('ptadn', 'ptadn-admin');
 
-        if (isset($_POST['ptadn_thumbnail'])) {
+        if ($tab == 'post') {
 
-            $ptadn_thumbnail = $_POST['ptadn_thumbnail'];
+            if (isset($_POST['ptadn_text'])) {
 
-        } else {
+                $ptadn_text = $_POST['ptadn_text'];
 
-            $ptadn_thumbnail = 0;
+            } else {
+
+                $ptadn_text = '{title} {link}';
+
+            }
+
+            $options['ptadn_text'] = $ptadn_text;
+
+        } elseif ($tab == 'settings') {
+
+            if (isset($_POST['ptadn_thumbnail'])) {
+
+                $ptadn_thumbnail = $_POST['ptadn_thumbnail'];
+
+            } else {
+
+                $ptadn_thumbnail = 0;
+
+            }
+
+            if (isset($_POST['ptadn_disabled'])) {
+
+                $ptadn_disabled = $_POST['ptadn_disabled'];
+
+            } else {
+
+                $ptadn_disabled = 0;
+
+            }
+
+            if (isset($_POST['ptadn_length'])) {
+
+                $ptadn_length = (int) $_POST['ptadn_length'];
+
+            } else {
+
+                $ptadn_length = 100;
+
+            }
+
+            if (isset($_POST['ptadn_antiflood'])) {
+
+                $ptadn_antiflood = $_POST['ptadn_antiflood'];
+
+            } else {
+
+                $ptadn_antiflood = 300;
+
+            }
+
+            if (is_numeric($_POST['ptadn_delay_days']) && is_numeric($_POST['ptadn_delay_hours']) && is_numeric($_POST['ptadn_delay_minutes'])) {
+
+                $ptadn_delay = $_POST['ptadn_delay_days'] * 86400 + $_POST['ptadn_delay_hours'] * 3600 + $_POST['ptadn_delay_minutes'] * 60;
+
+            } else {
+
+                $ptadn_delay = 0;
+
+            }
+
+            if (is_array($_POST['ptadn_types'])) {
+
+                $ptadn_types = $_POST['ptadn_types'];
+
+            } else {
+
+                $ptadn_types = array();
+
+            }
+
+            if (!empty($_POST['ptadn_yourls_url']) && !empty($_POST['ptadn_yourls_user']) && !empty($_POST['ptadn_yourls_pass'])) {
+
+                $ptadn_yourls_url = $_POST['ptadn_yourls_url'];
+                $ptadn_yourls_user = $_POST['ptadn_yourls_user'];
+                $ptadn_yourls_pass = $_POST['ptadn_yourls_pass'];
+
+                $options['ptadn_bitly_login'] = null;
+                $options['ptadn_bitly_token'] = null;
+
+            } else {
+
+                $ptadn_yourls_url = null;
+                $ptadn_yourls_user = null;
+                $ptadn_yourls_pass = null;
+
+            }
+
+            $options['ptadn_thumbnail'] = $ptadn_thumbnail;
+            $options['ptadn_disabled'] = $ptadn_disabled;
+            $options['ptadn_length'] = $ptadn_length;
+            $options['ptadn_delay'] = $ptadn_delay;
+            $options['ptadn_types'] = $ptadn_types;
+            $options['ptadn_yourls_url'] = $ptadn_yourls_url;
+            $options['ptadn_yourls_user'] = $ptadn_yourls_user;
+            $options['ptadn_yourls_pass'] = $ptadn_yourls_pass;
+            $options['ptadn_antiflood'] = $ptadn_antiflood;
 
         }
-
-		if (isset($_POST['ptadn_disabled'])) {
-
-            $ptadn_disabled = $_POST['ptadn_disabled'];
-
-		} else {
-
-            $ptadn_disabled = 0;
-
-		}
-
-        if (isset($_POST['ptadn_length'])) {
-
-            $ptadn_length = (int) $_POST['ptadn_length'];
-
-        } else {
-
-            $ptadn_length = 100;
-
-        }
-
-        if (isset($_POST['ptadn_text'])) {
-
-            $ptadn_text = $_POST['ptadn_text'];
-
-        } else {
-
-            $ptadn_text = '{title} {link}';
-
-        }
-
-        if (isset($_POST['ptadn_antiflood'])) {
-
-            $ptadn_antiflood = $_POST['ptadn_antiflood'];
-
-        } else {
-
-            $ptadn_antiflood = 300;
-
-        }
-
-        if (is_numeric($_POST['ptadn_delay_days']) && is_numeric($_POST['ptadn_delay_hours']) && is_numeric($_POST['ptadn_delay_minutes'])) {
-
-            $ptadn_delay = $_POST['ptadn_delay_days'] * 86400 + $_POST['ptadn_delay_hours'] * 3600 + $_POST['ptadn_delay_minutes'] * 60;
-
-        } else {
-
-            $ptadn_delay = 0;
-
-        }
-
-        if (is_array($_POST['ptadn_types'])) {
-
-            $ptadn_types = $_POST['ptadn_types'];
-
-        } else {
-
-            $ptadn_types = array();
-
-        }
-
-        if (!empty($_POST['ptadn_yourls_url']) && !empty($_POST['ptadn_yourls_user']) && !empty($_POST['ptadn_yourls_pass'])) {
-
-            $ptadn_yourls_url = $_POST['ptadn_yourls_url'];
-            $ptadn_yourls_user = $_POST['ptadn_yourls_user'];
-            $ptadn_yourls_pass = $_POST['ptadn_yourls_pass'];
-
-            $options['ptadn_bitly_login'] = null;
-            $options['ptadn_bitly_token'] = null;
-
-        } else {
-
-            $ptadn_yourls_url = null;
-            $ptadn_yourls_user = null;
-            $ptadn_yourls_pass = null;
-
-        }
-
-        $options['ptadn_thumbnail'] = $ptadn_thumbnail;
-        $options['ptadn_disabled'] = $ptadn_disabled;
-        $options['ptadn_text'] = $ptadn_text;
-        $options['ptadn_length'] = $ptadn_length;
-        $options['ptadn_delay'] = $ptadn_delay;
-        $options['ptadn_types'] = $ptadn_types;
-        $options['ptadn_yourls_url'] = $ptadn_yourls_url;
-        $options['ptadn_yourls_user'] = $ptadn_yourls_user;
-        $options['ptadn_yourls_pass'] = $ptadn_yourls_pass;
-        $options['ptadn_antiflood'] = $ptadn_antiflood;
 
 		update_option('ptadn', $options);
 
 		$updated = true;
 
-	}
+	} elseif (isset($_POST['create-channel'])) {
+
+        check_admin_referer('ptadn', 'ptadn-channel');
+
+        $jsonContent = array(
+            'type' => 'net.app.core.broadcast',
+            'readers' => array(
+                'any_user' => true,
+                'public' => true,
+                'user_ids' => array()
+            ),
+            'writers' => array(
+                'any_user' => false,
+                'public' => false,
+                'users_ids' => array($options['ptadn_id'])
+            ),
+            'annotations' => array(
+                array(
+                    'type' => 'net.app.core.broadcast.metadata',
+                    'value' => array(
+                        'title' => $_POST['ptadn_title'],
+                        'description' => $_POST['ptadn_description'],
+                        'fallback_url' => $_POST['ptadn_url']
+                    )
+                )
+            )
+        );
+
+        ptadn_api_call('channels', array(), 'POST', json_encode($jsonContent));
+
+        $updated = true;
+
+    } elseif (isset($_POST['check-channels'])) {
+
+        check_admin_referer('ptadn', 'ptadn-channel');
+
+        $options['ptadn_channels'] = array();
+
+        foreach ($_POST['ptadn_channels'] as $id) {
+
+            $json = ptadn_api_call('channels/' . $id, array('include_annotations' => 1));
+
+            foreach ($json->data->annotations as $annotation) {
+
+                if ($annotation->type == 'net.app.core.broadcast.metadata') {
+
+                    $options['ptadn_channels'][$id] = $annotation->value->title;
+
+                }
+
+            }
+
+        }
+
+        update_option('ptadn', $options);
+
+        $updated = true;
+
+    }
 
     echo '<div class="wrap">';
 
@@ -302,8 +415,13 @@ function ptadn_conf() {
             echo "</p></div>";
 
             $options['ptadn_token'] = null;
+            $options['ptadn_id'] = 0;
 
             update_option('ptadn', $options);
+
+        } else {
+
+            $options['ptadn_id'] = $json->data->id;
 
         }
 
@@ -325,6 +443,8 @@ function ptadn_conf() {
 
     } else {
 
+        ptadn_conf_tabs($tab);
+
         $delayDays = $delayHours = $delayMinutes = 0;
 
         if ($options['ptadn_delay'] > 0) {
@@ -335,110 +455,128 @@ function ptadn_conf() {
 
         }
 
+        echo '<div style="float: right; background: #ececec; padding: 10px 20px; margin-top: 15px;">';
+
+        echo '<h3>Your account</h3>';
+
         echo '<p><img src="'.$json->data->avatar_image->url.'" width="60"></p>';
 
-        echo '<p>You are authenticated on App.net with the username: '.$json->data->username.'</p>';
-        echo '<p><a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&token=reset">Disconnect from App.net</a></p>';
+        echo '<p>You are authenticated on App.net<br />with the username: '.$json->data->username.'</p>';
+        echo '<p><a class="button-secondary" href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&token=reset">Disconnect from App.net</a></p>';
 
-        echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'" method="post">';
+        echo '<h3>About the creator</h3>';
 
-        echo '<h3><label for="ptadn_text">ADN Post format</label></h3>';
-        echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">'.$options['ptadn_text'].'</textarea></p>';
+        echo '<p>Ping me on App.net: <a href="http://alpha.app.net/maximevalette" target="_blank">maximevalette</a></p>';
 
-        echo '<h3>Variables</h3>';
+        echo '</div>';
 
-        echo '<ul><li>{title} for the blog title<li>{link} for the permalink<li>{author} for the author<li>{excerpt} for the first words of your post<li>{tags} for the tags of your article (with a #)</ul>';
+        if (in_array($tab, array('post','settings'))) {
 
-        echo '<p>You can also use {linkedTitle} instead of {title} and {link} in order to use the link entity feature of App.net.</p>';
+            echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&tab='.$tab.'" method="post">';
 
-        echo '<h3>Advanced Options</h3>';
+            if ($tab == 'post') {
 
-        echo '<p><input id="ptadn_thumbnail" name="ptadn_thumbnail" type="checkbox" value="1"';
-        if ($options['ptadn_thumbnail'] == 1) echo ' checked';
-        echo '/> <label for="ptadn_thumbnail">Also send the Featured Image for the post if there is one</label></p>';
+                echo '<h3><label for="ptadn_text">ADN Post Format</label></h3>';
+                echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">'.$options['ptadn_text'].'</textarea></p>';
 
-        echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
+                echo '<h3>Variables</h3>';
 
-        echo '<p>Send a post for these post types:</p>';
+                echo '<ul><li>{title} for the blog title<li>{link} for the permalink<li>{author} for the author<li>{excerpt} for the first words of your post<li>{tags} for the tags of your article (with a #)</ul>';
 
-        $postTypes = get_post_types(array('public' => true), 'names');
+                echo '<p>You can also use {linkedTitle} instead of {title} and {link} in order to use the link entity feature of App.net.</p>';
 
-        echo '<ul style="margin-left: 10px;">';
+            } elseif ($tab == 'settings') {
 
-        foreach ($postTypes as $postType) {
+                echo '<h3>Advanced Settings</h3>';
 
-            if (in_array($postType, array('attachment', 'nav_menu_item', 'revision'))) {
-                continue;
-            }
+                echo '<p><input id="ptadn_thumbnail" name="ptadn_thumbnail" type="checkbox" value="1"';
+                if ($options['ptadn_thumbnail'] == 1) echo ' checked';
+                echo '/> <label for="ptadn_thumbnail">Also send the Featured Image for the post if there is one</label></p>';
 
-            echo '<li><input type="checkbox" name="ptadn_types[]" value="' . $postType . '" id="ptype_' . $postType . '"';
+                echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
 
-            if (in_array($postType, $options['ptadn_types'])) {
-                echo ' checked';
-            }
+                echo '<p>Send a post for these post types:</p>';
 
-            echo '> <label for="ptype_' . $postType . '">' . $postType . '</label></li>';
+                $postTypes = get_post_types(array('public' => true), 'names');
 
-        }
+                echo '<ul style="margin-left: 10px;">';
 
-        echo '</ul>';
+                foreach ($postTypes as $postType) {
 
-        echo '<p>Bit.ly URL shortening: ';
+                    if (in_array($postType, array('attachment', 'nav_menu_item', 'revision'))) {
+                        continue;
+                    }
 
-        if (is_null($options['ptadn_bitly_login'])) {
+                    echo '<li><input type="checkbox" name="ptadn_types[]" value="' . $postType . '" id="ptype_' . $postType . '"';
 
-            $params = array(
-                'redirect_uri' => admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php')
-            );
+                    if (in_array($postType, $options['ptadn_types'])) {
+                        echo ' checked';
+                    }
 
-            echo '<a href="http://maxime.sh/triggers/bitly.php?'.http_build_query($params).'">Connect your Bit.ly account</a> &rarr;</p>';
+                    echo '> <label for="ptype_' . $postType . '">' . $postType . '</label></li>';
 
-        } else {
-
-            echo 'Currently connected with '.$options['ptadn_bitly_login'].' — <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&bitly_token=reset">Disconnect</a></p>';
-
-        }
-
-        echo '</p>';
-
-        echo '<p>YOURLS URL shortening:</p>';
-
-        echo '<p style="margin-left: 25px;">URL (without /yourls-api.php): <input type="text" style="width: 250px;" name="ptadn_yourls_url" value="'.$options['ptadn_yourls_url'].'" /></p>';
-        echo '<p style="margin-left: 25px;">Username: <input type="text" style="width: 150px;" name="ptadn_yourls_user" value="'.$options['ptadn_yourls_user'].'" /></p>';
-        echo '<p style="margin-left: 25px;">Password: <input type="password" style="width: 150px;" name="ptadn_yourls_pass" value="'.$options['ptadn_yourls_pass'].'" /></p>';
-
-        echo '<p><label>Delay the ADN post:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_days" value="'.$delayDays.'" /> days,';
-        echo ' <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_hours" value="'.$delayHours.'" /> hours,';
-        echo ' <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_minutes" value="'.$delayMinutes.'" /> minutes.</p>';
-
-        echo '<p><label>Anti-flood protection:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_antiflood" value="'.$options['ptadn_antiflood'].'" /> seconds.</p>';
-
-        echo '<p><input id="ptadn_disabled" name="ptadn_disabled" type="checkbox" value="1"';
-        if ($options['ptadn_disabled'] == 1) echo ' checked';
-        echo '/> <label for="ptadn_disabled">Disable auto posting to App.net</label></p>';
-
-        echo '<p class="submit" style="text-align: left">';
-        wp_nonce_field('ptadn', 'ptadn-admin');
-        echo '<input type="submit" name="submit" value="'.__('Save').' &raquo;" /></p></form>';
-
-        $cron = _get_cron_array();
-
-        foreach ($cron as $timestamp => $cronhooks) {
-            foreach ((array) $cronhooks as $hook => $events) {
-                if ($hook != 'ptadn_event') {
-                    unset($cron[$timestamp][$hook]);
-                    continue;
                 }
-                foreach ((array) $events as $key => $event) {
-                    $cron[ $timestamp ][ $hook ][ $key ][ 'date' ] = date_i18n('Y/m/d \a\t g:ia', $timestamp + (get_option('gmt_offset') * 3600), 1);
+
+                echo '</ul>';
+
+                echo '<p>Bit.ly URL shortening: ';
+
+                if (is_null($options['ptadn_bitly_login'])) {
+
+                    $params = array(
+                        'redirect_uri' => admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php')
+                    );
+
+                    echo '<a href="http://maxime.sh/triggers/bitly.php?'.http_build_query($params).'">Connect your Bit.ly account</a> &rarr;</p>';
+
+                } else {
+
+                    echo 'Currently connected with '.$options['ptadn_bitly_login'].' — <a href="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&bitly_token=reset">Disconnect</a></p>';
+
+                }
+
+                echo '</p>';
+
+                echo '<p>YOURLS URL shortening:</p>';
+
+                echo '<p style="margin-left: 25px;">URL (without /yourls-api.php): <input type="text" style="width: 250px;" name="ptadn_yourls_url" value="'.$options['ptadn_yourls_url'].'" /></p>';
+                echo '<p style="margin-left: 25px;">Username: <input type="text" style="width: 150px;" name="ptadn_yourls_user" value="'.$options['ptadn_yourls_user'].'" /></p>';
+                echo '<p style="margin-left: 25px;">Password: <input type="password" style="width: 150px;" name="ptadn_yourls_pass" value="'.$options['ptadn_yourls_pass'].'" /></p>';
+
+                echo '<p><label>Delay the ADN post:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_days" value="'.$delayDays.'" /> days,';
+                echo ' <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_hours" value="'.$delayHours.'" /> hours,';
+                echo ' <input type="text" style="width: 50px; text-align: center;" name="ptadn_delay_minutes" value="'.$delayMinutes.'" /> minutes.</p>';
+
+                echo '<p><label>Anti-flood protection:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_antiflood" value="'.$options['ptadn_antiflood'].'" /> seconds.</p>';
+
+                echo '<p><input id="ptadn_disabled" name="ptadn_disabled" type="checkbox" value="1"';
+                if ($options['ptadn_disabled'] == 1) echo ' checked';
+                echo '/> <label for="ptadn_disabled">Disable auto posting to App.net</label></p>';
+
+            }
+
+            echo '<p class="submit" style="text-align: left">';
+            wp_nonce_field('ptadn', 'ptadn-admin');
+            echo '<input type="submit" class="button-primary" name="submit" value="'.__('Save').' &raquo;" /></p></form>';
+
+        } elseif ($tab == 'schedule') {
+
+            $cron = _get_cron_array();
+
+            foreach ($cron as $timestamp => $cronhooks) {
+                foreach ((array) $cronhooks as $hook => $events) {
+                    if ($hook != 'ptadn_event') {
+                        unset($cron[$timestamp][$hook]);
+                        continue;
+                    }
+                    foreach ((array) $events as $key => $event) {
+                        $cron[ $timestamp ][ $hook ][ $key ][ 'date' ] = date_i18n('Y/m/d \a\t g:ia', $timestamp + (get_option('gmt_offset') * 3600), 1);
+                    }
+                }
+                if (count($cron[$timestamp]) == 0) {
+                    unset($cron[$timestamp]);
                 }
             }
-            if (count($cron[$timestamp]) == 0) {
-                unset($cron[$timestamp]);
-            }
-        }
-
-        if (count($cron) > 0) {
 
             echo '<h3>Scheduled ADN posts</h3>';
 
@@ -457,11 +595,101 @@ function ptadn_conf() {
 
             echo '</ul>';
 
+        } elseif ($tab == 'alerts') {
+
+            echo '<h3>Alerts Channel</h3>';
+
+            echo '<p>Alerts Channel is a new kind of channel built by App.net.</p>';
+
+            echo '<p>The goal is to help you broadcast important posts to your readers through a dedicated channel they can subscribe to.</p>';
+
+            echo '<p>When you post a new article you want to broadcast, just check the corresponding channel on the right box.</p>';
+
+            echo '<h3>Your channels</h3>';
+
+            echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&tab='.$tab.'" method="post">';
+
+            $json = ptadn_api_call('users/me/channels', array('channel_types' => 'net.app.core.broadcast', 'count' => 200, 'include_annotations' => 1));
+
+            if ($json->meta->code == 403) {
+
+                echo '<p>'.$json->meta->error_message.'</p>';
+
+                echo '<p>Click on "Disconnect from App.net" on the right and connect it again to authorize the new scopes.</p>';
+
+            } else {
+
+                if (count($json->data) == 0) {
+
+                    echo '<p>You don\'t own any alerts channel.</p>';
+
+                } else {
+
+                    $channels = array();
+
+                    foreach ($json->data as $channel) {
+
+                        $channels[$channel->id] = array(
+                            'readers' => count($channel->readers->user_ids)
+                        );
+
+                        foreach ($channel->annotations as $annotation) {
+
+                            if ($annotation->type == 'net.app.core.broadcast.metadata') {
+
+                                $channels[$channel->id]['title'] = $annotation->value->title;
+                                $channels[$channel->id]['description'] = $annotation->value->description;
+                                $channels[$channel->id]['url'] = $annotation->value->fallback_url;
+
+                            }
+
+                        }
+
+                    }
+
+                    echo '<ul>';
+
+                    foreach ($channels as $id => $channel) {
+
+                        echo '<li style="background: #ececec; padding: 10px; margin-bottom: 10px; width: 650px;">';
+                        echo '<input type="checkbox" name="ptadn_channels[]" value="'.$id.'" id="channel-'.$id.'" style="margin-right: 15px;"';
+                        echo (isset($options['ptadn_channels'][$id])) ? ' checked="checked"' : '';
+                        echo '>';
+                        echo '<label for="channel-'.$id.'"><strong>' . $channel['title'] .'</strong> — ' . $channel['description'] . ' — <a href="javascript:;" onclick="document.getElementById(\'code-'.$id.'\').style.display=\'block\';">Show subscribe button code</a></label><br />';
+
+                        echo '<input id="code-'.$id.'" type="text" style="display: none; margin-left: 25px; margin-top: 5px; width: 350px;" value="'.htmlspecialchars('<a href=\'http://alpha.app.net/intent/subscribe/?channel_id=25222\' class=\'adn-button\' target=\'_blank\' data-type=\'subscribe\' data-width="144" data-height="22" data-channel-id="25222">Subscribe on App.net</a><script>(function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=\'//d2zh9g63fcvyrq.cloudfront.net/adn.js\';fjs.parentNode.insertBefore(js,fjs);}}(document, \'script\', \'adn-button-js\'));</script>').'">';
+
+                        echo '</li>';
+
+                    }
+
+                    echo '</ul>';
+
+                    echo '<p class="submit" style="text-align: left">';
+                    wp_nonce_field('ptadn', 'ptadn-channel');
+                    echo '<input type="submit" class="button-primary" name="check-channels" value="'.__('Save').' &raquo;" /></p></form>';
+
+                }
+
+            }
+
+            echo '<h3>Create a new channel</h3>';
+
+            echo '<form action="'.admin_url('options-general.php?page=posts-to-adn/posts-to-adn.php').'&tab='.$tab.'" method="post">';
+
+            echo '<p>Channel title: <input type="text" style="width: 250px;" name="ptadn_title" value="'.get_bloginfo('name').'" /></p>';
+
+            echo '<p>Channel description: <input type="text" style="width: 450px;" name="ptadn_description" value="'.get_bloginfo('description').'" /></p>';
+
+            echo '<p>Channel URL: <input type="text" style="width: 450px;" name="ptadn_url" value="'.get_site_url().'" /></p>';
+
+            echo '<p>You can specify another URL than your website if you want your readers to have a more specific page about the channel.</p>';
+
+            echo '<p class="submit" style="text-align: left">';
+            wp_nonce_field('ptadn', 'ptadn-channel');
+            echo '<input type="submit" class="button-primary" name="create-channel" value="'.__('Save').' &raquo;" /></p></form>';
+
         }
-
-        echo '<h3>About the creator</h3>';
-
-        echo '<p>Ping me on App.net: <a href="http://alpha.app.net/maximevalette" target="_blank">maximevalette</a></p>';
 
     }
 
@@ -500,6 +728,22 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
     }*/
 
+    $channels = array();
+
+    if (isset($_POST['ptadn_channels'])) {
+
+        $channels = $_POST['ptadn_channels'];
+
+    }
+
+    $customFieldChannels = get_post_custom_values('ptadn_channels', $post_info['postId']);
+
+    if (isset($customFieldChannels[0])) {
+
+        $channels = explode(',', $customFieldChannels[0]);
+
+    }
+
     if (isset($_POST['ptadn_disable_post']) && $_POST['ptadn_disable_post'] == '1') {
 
         $new = 0;
@@ -520,7 +764,7 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
     }
 
-    if ($new || $force) {
+    if ($new || $force || count($channels) > 0) {
 
         if ($options['ptadn_delay'] > 0 && !$force) {
 
@@ -720,9 +964,33 @@ function ptadn_posts_to_adn($postID, $force=false) {
         }
 
         if ($_SERVER['SERVER_NAME'] != 'wordpress.lan') {
-            ptadn_api_call('posts?include_post_annotations=1', array(), 'POST', json_encode($jsonContent));
+
+            if ($new) {
+
+                ptadn_api_call('posts?include_post_annotations=1', array(), 'POST', json_encode($jsonContent));
+
+            }
+
+            foreach ($channels as $channel) {
+
+                ptadn_api_call('channels/'.$channel.'/messages?include_post_annotations=1', array(), 'POST', json_encode($jsonContent));
+
+            }
+
         } else {
-            error_log('New post: '.json_encode($jsonContent));
+
+            if ($new) {
+
+                error_log('New post: '.json_encode($jsonContent));
+
+            }
+
+            foreach ($channels as $channel) {
+
+                error_log('New post to '.$channel.': '.json_encode($jsonContent));
+
+            }
+
         }
 
         $options['ptadn_last_time'] = time();
@@ -730,6 +998,7 @@ function ptadn_posts_to_adn($postID, $force=false) {
 
         delete_post_meta($post_info['postId'], 'ptadn_textarea');
         delete_post_meta($post_info['postId'], 'ptadn_disable_post');
+        delete_post_meta($post_info['postId'], 'ptadn_channels');
 
     }
 
@@ -749,6 +1018,18 @@ function ptadn_save_posts_meta($postID) {
         if (!add_post_meta($postID, 'ptadn_textarea', $_POST['ptadn_textarea'], true)) {
 
             update_post_meta($postID, 'ptadn_textarea', $_POST['ptadn_textarea']);
+
+        }
+
+    }
+
+    if (isset($_POST['ptadn_channels'])) {
+
+        $channels = implode(',', $_POST['ptadn_channels']);
+
+        if (!add_post_meta($postID, 'ptadn_channels', $channels, true)) {
+
+            update_post_meta($postID, 'ptadn_channels', $channels);
 
         }
 
@@ -888,6 +1169,7 @@ function ptadn_get_options() {
     $options = get_option('ptadn');
 
     if (!isset($options['ptadn_token'])) $options['ptadn_token'] = null;
+    if (!isset($options['ptadn_id'])) $options['ptadn_id'] = 0;
     if (!isset($options['ptadn_disabled'])) $options['ptadn_disabled'] = 0;
     if (!isset($options['ptadn_text'])) $options['ptadn_text'] = '{title} {link}';
     if (!isset($options['ptadn_length'])) $options['ptadn_length'] = 100;
@@ -903,6 +1185,7 @@ function ptadn_get_options() {
     if (!isset($options['ptadn_yourls_pass'])) $options['ptadn_yourls_pass'] = null;
     if (!isset($options['ptadn_last_time'])) $options['ptadn_last_time'] = null;
     if (!isset($options['ptadn_antiflood'])) $options['ptadn_antiflood'] = 300;
+    if (!isset($options['ptadn_channels'])) $options['ptadn_channels'] = array();
 
     return $options;
 
@@ -931,6 +1214,9 @@ function ptadn_meta_box($post, $data) {
     $customFieldText = get_post_custom_values('ptadn_textarea', $post->ID);
     $customFieldDisable = get_post_custom_values('ptadn_disable_post', $post->ID);
 
+    $customFieldChannels = get_post_custom_values('ptadn_channels', $post->ID);
+    $customFieldChannels = explode(',', $customFieldChannels[0]);
+
     $textarea = (isset($customFieldText[0])) ? $customFieldText[0] : $options['ptadn_text'];
     $disable = $customFieldDisable[0];
 
@@ -938,17 +1224,29 @@ function ptadn_meta_box($post, $data) {
     echo ($disable == '1') ? ' opacity: 0.5;" disabled="disabled' : null;
     echo '" name="ptadn_textarea" id="ptadn_textarea">'.$textarea.'</textarea></p>';
 
+    foreach ($options['ptadn_channels'] as $id => $channel) {
+
+        echo '<p style="margin-top: 0.5em;"><input type="checkbox" name="ptadn_channels[]" id="channel-'.$id.'" value="'.$id.'" ';
+        echo (in_array($id, $customFieldChannels)) ? 'checked' : null;
+        echo '/>';
+
+        echo ' <label for="channel-'.$id.'">Send an App.net Alert to <strong>'.$channel.'</strong></label></p>';
+
+    }
+
+    echo '<input type="hidden" name="ptadn_disable_post" id="ptadn_disable_post" value="';
+    echo ($disable == '1') ? '1' : '0';
+    echo '">';
+
+    echo '<p style="margin-top: 0.5em;"><input type="checkbox" name="ptadn_enable_post" id="ptadn_enable_post" value="1" onChange="var pdp = document.getElementById(\'ptadn_disable_post\'); if (document.getElementById(\'ptadn_enable_post\').checked) { pdp.value = \'0\'; } else { pdp.value = \'1\'; }" ';
+    echo ($disable == '1') ? null : 'checked';
+    echo '/>';
+
+    echo ' <label for="ptadn_enable_post">Send an App.net Post</label></p>';
+
     if ($data['args']['oldPost']) {
 
         echo '<p style="text-align: center; margin-bottom: 20px;"><input type="submit" name="ptadn_publish_now" value="Publish the post on ADN" class="button"></p>';
-
-    } else {
-
-        echo '<p style="margin-top: 0.5em;"><input type="checkbox" name="ptadn_disable_post" id="ptadn_disable_post" value="1" onChange="var ta = document.getElementById(\'ptadn_textarea\'); if (document.getElementById(\'ptadn_disable_post\').checked) { ta.disabled = true; ta.style[\'opacity\'] = 0.5; } else { ta.disabled = false; ta.style[\'opacity\'] = 1; }" ';
-        echo ($disable == '1') ? 'checked' : null;
-        echo '/>';
-
-        echo ' <label for="ptadn_disable_post">Disable for this post</label></p>';
 
     }
 

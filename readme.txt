@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.4.1
+Stable tag: 1.5
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -21,6 +21,7 @@ Current features:
 * Send the Featured Image with your post
 * Per-post customization
 * Publish old posts with the box in the compose view
+* App.net Alerts Channels support
 
 I'm open to suggestions.
 
@@ -33,6 +34,10 @@ Ping me on App.net: http://alpha.app.net/maximevalette
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.5 =
+* New settings design.
+* Support for ADN Alerts Channels.
 
 = 1.4.1 =
 * Fixed a bug where sometimes the post wasn't triggered.
