@@ -4,7 +4,9 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.5.1
-Stable tag: 1.5
+Stable tag: 1.6
+License: GPLv2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Automatically posts your new blog articles to your App.net account.
 
@@ -25,7 +27,7 @@ Current features:
 
 I'm open to suggestions.
 
-Ping me on App.net: http://alpha.app.net/maximevalette
+Ping me on App.net: http://alpha.app.net/maxime
 
 == Installation ==
 
@@ -34,6 +36,11 @@ Ping me on App.net: http://alpha.app.net/maximevalette
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.6 =
+* Now using WP_Http API.
+* Now using WP_Filesystem API.
+* WordPress Coding Standards compliance.
 
 = 1.5 =
 * New settings design.
