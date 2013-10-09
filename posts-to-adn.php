@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6
+Version: 1.6.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
@@ -45,7 +45,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$result = $request->request(
 			'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
 			array(
-				'user-agent' => 'Posts to ADN/1.6 (http://wordpress.org/plugins/posts-to-adn/)',
+				'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
 			)
 		);
 
@@ -61,7 +61,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$result = $request->request(
 				'https://alpha-api.app.net/stream/0/'.$url,
 				array(
-					'user-agent' => 'Posts to ADN/1.6 (http://wordpress.org/plugins/posts-to-adn/)',
+					'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
 					'method' => 'POST',
 					'body' => $jsonContent,
 					'headers' => array(
@@ -76,7 +76,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$result = $request->request(
 				'https://alpha-api.app.net/stream/0/'.$url,
 				array(
-					'user-agent' => 'Posts to ADN/1.6 (http://wordpress.org/plugins/posts-to-adn/)',
+					'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
 					'method' => 'POST',
 					'body' => $jsonContent,
 					'headers' => array(
@@ -1034,7 +1034,30 @@ function ptadn_posts_to_adn( $postID, $force = false ) {
 
 			foreach ( $channels as $channel ) {
 
-				ptadn_api_call( 'channels/'.$channel.'/messages?include_post_annotations=1', array(), 'POST', json_encode( $jsonContent ) );
+				ptadn_api_call(
+					'channels/'.$channel.'/messages?include_post_annotations=1',
+					array(),
+					'POST',
+					json_encode(
+						array(
+							'text' => ptadn_word_cut( $excerpt, $options['ptadn_length'] ),
+							'annotations' => array(
+								array(
+									'type' => 'net.app.core.broadcast.message.metadata',
+									'value' => array(
+										'subject' => $post_info['postTitle'],
+									),
+								),
+								array(
+									'type' => 'net.app.core.crosspost',
+									'value' => array(
+										'canonical_url' => $url,
+									),
+								),
+							),
+						)
+					)
+				);
 
 			}
 		}
