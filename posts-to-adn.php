@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6.1
+Version: 1.6.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
@@ -43,10 +43,10 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$qs = http_build_query( $params, '', '&' );
 
 		$result = $request->request(
-			'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
-			array(
-				'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
-			)
+		                  'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
+			                  array(
+				                  'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
+			                  )
 		);
 
 		if ( is_array( $result ) && isset( $result['response']['code'] ) && 200 === $result['response']['code'] ) {
@@ -59,30 +59,30 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		if ( ! empty( $jsonContent ) ) {
 
 			$result = $request->request(
-				'https://alpha-api.app.net/stream/0/'.$url,
-				array(
-					'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
-					'method' => 'POST',
-					'body' => $jsonContent,
-					'headers' => array(
-						'Authorization' => 'Bearer '.$options['ptadn_token'],
-						'Content-type' => 'application/json',
-					)
-				)
+			                  'https://alpha-api.app.net/stream/0/'.$url,
+				                  array(
+					                  'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
+					                  'method' => 'POST',
+					                  'body' => $jsonContent,
+					                  'headers' => array(
+						                  'Authorization' => 'Bearer '.$options['ptadn_token'],
+						                  'Content-type' => 'application/json',
+					                  )
+				                  )
 			);
 
 		} else {
 
 			$result = $request->request(
-				'https://alpha-api.app.net/stream/0/'.$url,
-				array(
-					'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
-					'method' => 'POST',
-					'body' => $jsonContent,
-					'headers' => array(
-						'Authorization' => 'Bearer '.$options['ptadn_token'],
-					)
-				)
+			                  'https://alpha-api.app.net/stream/0/'.$url,
+				                  array(
+					                  'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
+					                  'method' => 'POST',
+					                  'body' => $jsonContent,
+					                  'headers' => array(
+						                  'Authorization' => 'Bearer '.$options['ptadn_token'],
+					                  )
+				                  )
 			);
 
 		}
@@ -95,7 +95,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 	}
 
 	if ( isset( $json->meta->error_message ) &&
-	! empty( $json->meta->error_message ) ) {
+		! empty( $json->meta->error_message ) ) {
 
 		$options['ptadn_error'] = $json->meta->error_message;
 
@@ -366,7 +366,7 @@ function ptadn_conf() {
 				'public' => true,
 				'user_ids' => array()
 			),
-			'writers' => array(
+			'editors' => array(
 				'any_user' => false,
 				'public' => false,
 				'users_ids' => array( $options['ptadn_id'] )
