@@ -4,7 +4,7 @@ Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
 Tested up to: 3.7.1
-Stable tag: 1.6.2
+Stable tag: 1.6.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,7 +23,7 @@ Current features:
 * Send the Featured Image with your post
 * Per-post customization
 * Publish old posts with the box in the compose view
-* App.net Alerts Channels support
+* App.net Broadcast Channels support
 
 I'm open to suggestions.
 
@@ -36,6 +36,12 @@ Ping me on App.net: http://alpha.app.net/maxime
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.6.3 =
+* Better URL handling and WordPress CS compliance.
+* New name for App.net Alerts.
+* More secure App.net authentication mechanism.
+* Fix file upload.
 
 = 1.6.2 =
 * Parameter update for App.net Alerts.

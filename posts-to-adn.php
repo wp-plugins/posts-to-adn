@@ -5,12 +5,13 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6.2
+Version: 1.6.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
 
-define( 'PTADN__DEBUG', false );
+define( 'PTADN_SLUG', 'ptadn' );
+define( 'PTADN_DEBUG', false );
 add_action( 'admin_menu', 'ptadn_config_page' );
 
 function ptadn_config_page() {
@@ -21,7 +22,7 @@ function ptadn_config_page() {
 			'options-general.php',
 			'Posts to ADN',
 			'Posts to ADN',
-			'manage_options', __FILE__, 'ptadn_conf'
+			'manage_options', PTADN_SLUG, 'ptadn_conf'
 		);
 
 	}
@@ -43,10 +44,10 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$qs = http_build_query( $params, '', '&' );
 
 		$result = $request->request(
-		                  'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
-			                  array(
-				                  'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
-			                  )
+			'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
+			array(
+			  'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+			)
 		);
 
 		if ( is_array( $result ) && isset( $result['response']['code'] ) && 200 === $result['response']['code'] ) {
@@ -59,30 +60,30 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		if ( ! empty( $jsonContent ) ) {
 
 			$result = $request->request(
-			                  'https://alpha-api.app.net/stream/0/'.$url,
-				                  array(
-					                  'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
-					                  'method' => 'POST',
-					                  'body' => $jsonContent,
-					                  'headers' => array(
-						                  'Authorization' => 'Bearer '.$options['ptadn_token'],
-						                  'Content-type' => 'application/json',
-					                  )
-				                  )
+				'https://alpha-api.app.net/stream/0/'.$url,
+				array(
+					'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+					'method' => 'POST',
+					'body' => $jsonContent,
+					'headers' => array(
+						'Authorization' => 'Bearer '.$options['ptadn_token'],
+						'Content-type' => 'application/json',
+					)
+				)
 			);
 
 		} else {
 
 			$result = $request->request(
-			                  'https://alpha-api.app.net/stream/0/'.$url,
-				                  array(
-					                  'user-agent' => 'Posts to ADN/1.6.1 (http://wordpress.org/plugins/posts-to-adn/)',
-					                  'method' => 'POST',
-					                  'body' => $jsonContent,
-					                  'headers' => array(
-						                  'Authorization' => 'Bearer '.$options['ptadn_token'],
-					                  )
-				                  )
+				'https://alpha-api.app.net/stream/0/'.$url,
+				array(
+					'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+					'method' => 'POST',
+					'body' => $params,
+					'headers' => array(
+						'Authorization' => 'Bearer '.$options['ptadn_token'],
+					)
+				)
 			);
 
 		}
@@ -92,10 +93,71 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$json = json_decode( $result['body'] );
 
 		}
+
+	} elseif ( 'UPLOAD' == $type ) {
+
+		$boundary = uniqid();
+
+		$headers = array(
+			'Authorization' => 'Bearer '.$options['ptadn_token'],
+			'Content-type' => 'multipart/form-data; boundary=' . $boundary,
+		);
+
+		$payload = '';
+
+		foreach ( $params as $name => $value ) {
+
+			if ( preg_match( '/^@([^;]+);type=(.+)$/', $value, $r ) ) {
+
+				$request  = new WP_Http;
+
+				$result = $request->request( $r[1] );
+				$data = (string) $result['body'];
+
+				if ( isset( $data ) && ! empty( $data ) ) {
+
+					$payload .= '--' . $boundary;
+					$payload .= "\r\n";
+					$payload .= 'Content-Disposition: form-data; name="' . $name . '"; filename="' . basename( $r[1] ) . '"' . "\r\n";
+					$payload .= 'Content-Type: ' . $r[2] . "\r\n";
+					$payload .= "\r\n";
+					$payload .= $data;
+					$payload .= "\r\n";
+
+				}
+
+			}
+
+			$payload .= '--' . $boundary;
+			$payload .= "\r\n";
+			$payload .= 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n\r\n";
+			$payload .= $value;
+			$payload .= "\r\n";
+
+		}
+
+		$payload .= '--' . $boundary . '--';
+
+		$result = $request->request(
+			'https://alpha-api.app.net/stream/0/'.$url,
+			array(
+				'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+				'method' => 'POST',
+				'body' => $payload,
+				'headers' => $headers
+			)
+		);
+
+		if ( is_array( $result ) && isset( $result['response']['code'] ) && 200 === $result['response']['code'] ) {
+
+			$json = json_decode( $result['body'] );
+
+		}
+
 	}
 
 	if ( isset( $json->meta->error_message ) &&
-		! empty( $json->meta->error_message ) ) {
+	! empty( $json->meta->error_message ) ) {
 
 		$options['ptadn_error'] = $json->meta->error_message;
 
@@ -103,7 +165,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 
 	}
 
-	if ( PTADN__DEBUG && isset( $result ) && is_array( $result ) && isset( $result['body'] ) ) {
+	if ( PTADN_DEBUG && isset( $result ) && is_array( $result ) && isset( $result['body'] ) ) {
 
 		error_log( 'API: '.$result['body'] );
 
@@ -119,7 +181,7 @@ function ptadn_conf_tabs( $current = 'post' ) {
 	$tabs = array(
 		'post' => 'Post Format',
 		'settings' => 'Settings',
-		'alerts' => 'Alerts',
+		'broadcast' => 'Broadcast',
 	);
 
 	$cron = _get_cron_array();
@@ -152,7 +214,11 @@ function ptadn_conf_tabs( $current = 'post' ) {
 	foreach ( $tabs as $tab => $name ) {
 
 		$class = ( $tab == $current ) ? ' nav-tab-active' : '';
-		echo "<a class='nav-tab".$class."' href='".admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&amp;tab='.$tab."'>".$name.'</a>';
+		$url = add_query_arg( array(
+			'page' => PTADN_SLUG,
+			'tab' => $tab
+		), admin_url( 'options-general.php' ) );
+		echo "<a class='nav-tab" . esc_attr( $class ) . "' href='" . $url . "'>" . esc_html( $name ) . '</a>';
 
 	}
 
@@ -228,11 +294,17 @@ function ptadn_conf() {
 
 			$options['ptadn_token'] = null;
 
-		} else {
-
-			$options['ptadn_token'] = $_GET['token'];
-
 		}
+
+		update_option( 'ptadn', $options );
+
+		$updated = true;
+
+	}
+
+	if ( isset( $_POST['auth-token'] ) && ! empty( $_POST['ptadn_token'] ) ) {
+
+		$options['ptadn_token'] = $_POST['ptadn_token'];
 
 		update_option( 'ptadn', $options );
 
@@ -450,14 +522,24 @@ function ptadn_conf() {
 	if ( empty( $options['ptadn_token'] ) ) {
 
 		$params = array(
-			'redirect_uri' => admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' )
+			'redirect_uri' => admin_url( 'options-general.php?page=' . PTADN_SLUG )
 		);
 
-		$auth_url = 'http://maxime.sh/triggers/adn.php?'.http_build_query( $params );
+		$auth_url = 'http://maxime.sh/triggers/adn-token.php?'.http_build_query( $params );
 
 		echo '<p>Connect or sign up a free App.net account:</p>';
 
-		echo '<p><a href="'.$auth_url.'" class="adn-button" data-type="authorize_v2" data-width="145" data-height="22" >Authorize with App.net</a><script>(function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=\'//d2zh9g63fcvyrq.cloudfront.net/adn.js\';fjs.parentNode.insertBefore(js,fjs);}}(document, \'script\', \'adn-button-js\'));</script></p>';
+		echo '<p><a href="' . esc_url( $auth_url ) . '" class="adn-button" data-type="authorize_v2" data-width="145" data-height="22" >Authorize with App.net</a><script>(function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=\'//d2zh9g63fcvyrq.cloudfront.net/adn.js\';fjs.parentNode.insertBefore(js,fjs);}}(document, \'script\', \'adn-button-js\'));</script></p>';
+
+		echo '<p>Then fill the form below.</p>';
+
+		echo '<form action="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&amp;tab='.$tab.'" method="post">';
+
+		echo '<p><label for="token">ADN Token:</label> <input type="text" style="width: 350px;" name="ptadn_token" value="" /></p>';
+
+		echo '<p class="submit" style="text-align: left">';
+		wp_nonce_field( 'ptadn', 'ptadn-token-auth' );
+		echo '<input type="submit" class="button-primary" name="auth-token" value="'.__( 'Save' ).' &raquo;" /></p></form>';
 
 	} else {
 
@@ -477,10 +559,10 @@ function ptadn_conf() {
 
 		echo '<h3>Your account</h3>';
 
-		echo '<p><img src="'.$json->data->avatar_image->url.'" width="60" alt="Avatar"></p>';
+		echo '<p><img src="' . esc_url( $json->data->avatar_image->url ) . '" width="60" alt="Avatar"></p>';
 
 		echo '<p>You are authenticated on App.net<br />with the username: '.$json->data->username.'</p>';
-		echo '<p><a class="button-secondary" href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&amp;token=reset">Disconnect from App.net</a></p>';
+		echo '<p><a class="button-secondary" href="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&amp;token=reset">Disconnect from App.net</a></p>';
 
 		echo '<h3>About the creator</h3>';
 
@@ -490,12 +572,16 @@ function ptadn_conf() {
 
 		if ( in_array( $tab, array( 'post', 'settings' ) ) ) {
 
-			echo '<form action="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&amp;tab='.$tab.'" method="post">';
+			$url = add_query_arg( array(
+				'page' => PTADN_SLUG,
+				'tab' => $tab,
+			), admin_url( 'options-general.php' ) );
+			echo '<form action="' . esc_url( $url ) . '" method="post">';
 
 			if ( $tab == 'post' ) {
 
 				echo '<h3><label for="ptadn_text">ADN Post Format</label></h3>';
-				echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">'.$options['ptadn_text'].'</textarea></p>';
+				echo '<p><textarea id="ptadn_text" name="ptadn_text" style="width: 400px; resize: vertical; height: 100px;">' . esc_html( $options['ptadn_text'] ) . '</textarea></p>';
 
 				echo '<h3>Variables</h3>';
 
@@ -511,7 +597,7 @@ function ptadn_conf() {
 				if ( $options['ptadn_thumbnail'] == 1 ) echo ' checked';
 				echo ' /> <label for="ptadn_thumbnail">Also send the Featured Image for the post if there is one</label></p>';
 
-				echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="'.$options['ptadn_length'].'" /> characters.</p>';
+				echo '<p><label for="ptadn_length">Excerpt length:</label> <input type="text" style="width: 50px; text-align: center;" name="ptadn_length" id="ptadn_length" value="' . esc_attr( $options['ptadn_length'] ) . '" /> characters.</p>';
 
 				echo '<p>Send a post for these post types:</p>';
 
@@ -525,13 +611,13 @@ function ptadn_conf() {
 						continue;
 					}
 
-					echo '<li><input type="checkbox" name="ptadn_types[]" value="' . $postType . '" id="ptype_' . $postType . '"';
+					echo '<li><input type="checkbox" name="ptadn_types[]" value="' . esc_attr( $postType )	. '" id="ptype_' . esc_attr( $postType ) . '"';
 
 					if ( in_array( $postType, $options['ptadn_types'] ) ) {
 						echo ' checked';
 					}
 
-					echo '> <label for="ptype_' . $postType . '">' . $postType . '</label></li>';
+					echo '> <label for="ptype_' . esc_attr( $postType ) . '">' . esc_html( $postType ) . '</label></li>';
 
 				}
 
@@ -542,14 +628,18 @@ function ptadn_conf() {
 				if ( is_null( $options['ptadn_bitly_login'] ) ) {
 
 					$params = array(
-						'redirect_uri' => admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' )
+						'redirect_uri' => admin_url( 'options-general.php?page=' . PTADN_SLUG )
 					);
 
 					echo '<a href="http://maxime.sh/triggers/bitly.php?'.http_build_query( $params ).'">Connect your Bit.ly account</a> &rarr;</p>';
 
 				} else {
 
-					echo 'Currently connected with '.$options['ptadn_bitly_login'].' — <a href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&bitly_token=reset">Disconnect</a></p>';
+					$url = add_query_arg( array(
+						'page' => PTADN_SLUG,
+						'bitly_token' => 'reset',
+					), admin_url( 'options-general.php' ) );
+					echo 'Currently connected with ' . esc_html( $options['ptadn_bitly_login'] ) . ' — <a href="' . esc_url( $url ) . '">Disconnect</a></p>';
 
 				}
 
@@ -603,7 +693,7 @@ function ptadn_conf() {
 					foreach ( $events as $key => $event ) {
 
 						$cronPost = $event['args'][0];
-						echo '<li><a href="'.$cronPost->guid.'" target="_blank">'.$cronPost->post_title.'</a>: Will be posted on '.$event['date'].' — <a href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&delete_schedule='.$key.'">Delete</a></li>';
+						echo '<li><a href="'.$cronPost->guid.'" target="_blank">'.$cronPost->post_title.'</a>: Will be posted on '.$event['date'].' — <a href="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&delete_schedule='.$key.'">Delete</a></li>';
 
 					}
 				}
@@ -611,11 +701,11 @@ function ptadn_conf() {
 
 			echo '</ul>';
 
-		} elseif ( $tab == 'alerts' ) {
+		} elseif ( $tab == 'broadcast' ) {
 
-			echo '<h3>Alerts Channel</h3>';
+			echo '<h3>Broadcast Channel</h3>';
 
-			echo '<p>Alerts Channel is a new kind of channel built by App.net.</p>';
+			echo '<p>Broadcast Channel is a new kind of channel built by App.net.</p>';
 
 			echo '<p>The goal is to help you broadcast important posts to your readers through a dedicated channel they can subscribe to.</p>';
 
@@ -623,7 +713,7 @@ function ptadn_conf() {
 
 			echo '<h3>Your channels</h3>';
 
-			echo '<form action="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&amp;tab='.$tab.'" method="post">';
+			echo '<form action="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&amp;tab='.$tab.'" method="post">';
 
 			$json = ptadn_api_call( 'users/me/channels', array( 'channel_types' => 'net.app.core.broadcast', 'count' => 200, 'include_annotations' => 1 ) );
 
@@ -637,7 +727,7 @@ function ptadn_conf() {
 
 				if ( count( $json->data ) == 0 ) {
 
-					echo '<p>You don\'t own any alerts channel.</p>';
+					echo '<p>You don\'t own any broadcast channel.</p>';
 
 				} else {
 
@@ -688,7 +778,7 @@ function ptadn_conf() {
 
 			echo '<h3>Create a new channel</h3>';
 
-			echo '<form action="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&amp;tab='.$tab.'" method="post">';
+			echo '<form action="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&amp;tab='.$tab.'" method="post">';
 
 			echo '<p>Channel title: <input type="text" style="width: 250px;" name="ptadn_title" value="'.get_bloginfo( 'name' ).'" /></p>';
 
@@ -710,7 +800,7 @@ function ptadn_conf() {
 // Upload a file using the WP Filesystem API
 function ptadn_upload_file( $name, $data ) {
 
-	$url = wp_nonce_url( 'options-general.php?page='.basename( dirname( __FILE__ ) ).'/posts-to-adn.php', 'ptadn-options' );
+	$url = wp_nonce_url( 'options-general.php?page=' . PTADN_SLUG, 'ptadn-options' );
 
 	if ( false === ( $creds = request_filesystem_credentials( $url ) ) ) {
 
@@ -741,7 +831,7 @@ function ptadn_upload_file( $name, $data ) {
 // Delete a file using the WP Filesystem API
 function ptadn_delete_file( $name ) {
 
-	$url = wp_nonce_url( 'options-general.php?page='.basename( dirname( __FILE__ ) ).'/posts-to-adn.php', 'ptadn-options' );
+	$url = wp_nonce_url( 'options-general.php?page=' . PTADN_SLUG, 'ptadn-options' );
 
 	if ( false === ( $creds = request_filesystem_credentials( $url ) ) ) {
 
@@ -959,59 +1049,49 @@ function ptadn_posts_to_adn( $postID, $force = false ) {
 
 				}
 
-				$request  = new WP_Http;
-				$filename = uniqid() . '.' . $fileExt;
+				$fileJson = ptadn_api_call(
+					'files', array(
+						'public' => true,
+						'type' => 'com.maximevalette.posts_to_adn',
+						'name' => basename( $src ),
+						 'content' => '@' . $src . ';type=image/' . $fileType,
+					), 'UPLOAD'
+				);
 
-				$result = $request->request( $src );
-				$data = (string) $result['body'];
+				if ( is_string( $fileJson->data->id ) ) {
 
-				if ( isset( $data ) && ! empty( $data ) && false !== ( $path = ptadn_upload_file( $filename, $data ) ) ) {
-
-					$fileJson = ptadn_api_call(
-						'files', array(
-							'public' => true,
-							'type' => 'com.maximevalette.posts_to_adn',
-							'name' => basename( $src ),
-							'content' => '@' . $path . ';type=image/' . $fileType,
-						), 'POST'
-					);
-
-					if ( is_string( $fileJson->data->id ) ) {
-
-						$jsonContent['annotations'] = array(
-							array(
-								'type' => 'net.app.core.oembed',
-								'value' => array(
-									'+net.app.core.file' => array(
+					$jsonContent['annotations'] = array(
+						array(
+							'type' => 'net.app.core.oembed',
+							'value' => array(
+								'+net.app.core.file' => array(
+									'file_id' => $fileJson->data->id,
+									'file_token' => $fileJson->data->file_token,
+									'format' => 'oembed',
+								)
+							)
+						),
+						array(
+							'type' => 'net.app.core.attachments',
+							'value' => array(
+								'+net.app.core.file_list' => array(
+									array(
 										'file_id' => $fileJson->data->id,
 										'file_token' => $fileJson->data->file_token,
-										'format' => 'oembed',
-									)
+										'format' => 'metadata',
+									),
 								)
-							),
-							array(
-								'type' => 'net.app.core.attachments',
-								'value' => array(
-									'+net.app.core.file_list' => array(
-										array(
-											'file_id' => $fileJson->data->id,
-											'file_token' => $fileJson->data->file_token,
-											'format' => 'metadata',
-										),
-									)
-								)
-							),
-						);
-
-					}
-
-					ptadn_delete_file( $path );
+							)
+						),
+					);
 
 				}
+
+				// ptadn_delete_file( $path );
 			}
 		}
 
-		if ( PTADN__DEBUG ) {
+		if ( PTADN_DEBUG ) {
 
 			if ( $new ) {
 
@@ -1185,9 +1265,9 @@ function ptadn_admin_notice() {
 
 	if ( current_user_can( 'manage_options' ) ) {
 
-		if ( empty( $options['ptadn_token'] ) && ! isset( $_GET['token'] ) ) {
+		if ( empty( $options['ptadn_token'] ) && ! isset( $_GET['token'] ) && ! isset( $_POST['auth-token'] ) ) {
 
-			echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'">Update settings &rarr;</a></p></div>';
+			echo '<div class="error"><p>Warning: Your App.net account is not properly configured in the Posts to ADN plugin. <a href="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'">Update settings &rarr;</a></p></div>';
 
 		} elseif ( ! isset( $_GET['token'] ) && $options['ptadn_files_scope'] === false ) {
 
@@ -1197,7 +1277,7 @@ function ptadn_admin_notice() {
 
 				if ( ! in_array( 'files', $json->data->scopes ) ) {
 
-					echo '<div class="error"><p>Warning: You should disconnect and reconnect your App.net account to authorize the Files scope. <a href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'">Update settings &rarr;</a></p></div>';
+					echo '<div class="error"><p>Warning: You should disconnect and reconnect your App.net account to authorize the Files scope. <a href="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'">Update settings &rarr;</a></p></div>';
 
 				} else {
 
@@ -1208,7 +1288,7 @@ function ptadn_admin_notice() {
 			}
 		} elseif ( ! isset( $_GET['clear_error'] ) && ! empty( $options['ptadn_error'] ) ) {
 
-			echo '<div class="error"><p>Warning: Your last App.net API call returned an error: '.$options['ptadn_error'].'. <a href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'&clear_error=1">Clear and go to settings &rarr;</a></p></div>';
+			echo '<div class="error"><p>Warning: Your last App.net API call returned an error: '.$options['ptadn_error'].'. <a href="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&clear_error=1">Clear and go to settings &rarr;</a></p></div>';
 
 		}
 	}
@@ -1310,7 +1390,7 @@ function ptadn_meta_box( $post, $data ) {
 
 	}
 
-	echo '<p style="text-align: right;"><a href="'.admin_url( 'options-general.php?page=posts-to-adn/posts-to-adn.php' ).'">Go to Posts to ADN settings</a> &rarr;</p>';
+	echo '<p style="text-align: right;"><a href="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'">Go to Posts to ADN settings</a> &rarr;</p>';
 
 }
 
