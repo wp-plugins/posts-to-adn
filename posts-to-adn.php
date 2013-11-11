@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6.3
+Version: 1.6.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
@@ -46,7 +46,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$result = $request->request(
 			'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
 			array(
-			  'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+			  'user-agent' => 'Posts to ADN/1.6.4 (http://wordpress.org/plugins/posts-to-adn/)',
 			)
 		);
 
@@ -62,7 +62,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$result = $request->request(
 				'https://alpha-api.app.net/stream/0/'.$url,
 				array(
-					'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+					'user-agent' => 'Posts to ADN/1.6.4 (http://wordpress.org/plugins/posts-to-adn/)',
 					'method' => 'POST',
 					'body' => $jsonContent,
 					'headers' => array(
@@ -77,7 +77,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$result = $request->request(
 				'https://alpha-api.app.net/stream/0/'.$url,
 				array(
-					'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+					'user-agent' => 'Posts to ADN/1.6.4 (http://wordpress.org/plugins/posts-to-adn/)',
 					'method' => 'POST',
 					'body' => $params,
 					'headers' => array(
@@ -109,30 +109,32 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 
 			if ( preg_match( '/^@([^;]+);type=(.+)$/', $value, $r ) ) {
 
-				$request  = new WP_Http;
+				$getRequest  = new WP_Http;
 
-				$result = $request->request( $r[1] );
-				$data = (string) $result['body'];
+				$getResult = $getRequest->request( $r[1] );
+				$getData = (string) $getResult['body'];
 
-				if ( isset( $data ) && ! empty( $data ) ) {
+				if ( isset( $getData ) && ! empty( $getData ) ) {
 
 					$payload .= '--' . $boundary;
 					$payload .= "\r\n";
 					$payload .= 'Content-Disposition: form-data; name="' . $name . '"; filename="' . basename( $r[1] ) . '"' . "\r\n";
 					$payload .= 'Content-Type: ' . $r[2] . "\r\n";
 					$payload .= "\r\n";
-					$payload .= $data;
+					$payload .= $getData;
 					$payload .= "\r\n";
 
 				}
 
-			}
+			} else {
 
-			$payload .= '--' . $boundary;
-			$payload .= "\r\n";
-			$payload .= 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n\r\n";
-			$payload .= $value;
-			$payload .= "\r\n";
+				$payload .= '--' . $boundary;
+				$payload .= "\r\n";
+				$payload .= 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n\r\n";
+				$payload .= $value;
+				$payload .= "\r\n";
+
+			}
 
 		}
 
@@ -141,7 +143,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$result = $request->request(
 			'https://alpha-api.app.net/stream/0/'.$url,
 			array(
-				'user-agent' => 'Posts to ADN/1.6.3 (http://wordpress.org/plugins/posts-to-adn/)',
+				'user-agent' => 'Posts to ADN/1.6.4 (http://wordpress.org/plugins/posts-to-adn/)',
 				'method' => 'POST',
 				'body' => $payload,
 				'headers' => $headers
