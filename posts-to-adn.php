@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6.5
+Version: 1.6.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
@@ -46,7 +46,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$result = $request->request(
 			'https://alpha-api.app.net/stream/0/'.$url.'?'.$qs,
 			array(
-			  'user-agent' => 'Posts to ADN/1.6.5 (http://wordpress.org/plugins/posts-to-adn/)',
+			  'user-agent' => 'Posts to ADN/'.ptadn_get_version().' (http://wordpress.org/plugins/posts-to-adn/)',
 			)
 		);
 
@@ -62,7 +62,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$result = $request->request(
 				'https://alpha-api.app.net/stream/0/'.$url,
 				array(
-					'user-agent' => 'Posts to ADN/1.6.5 (http://wordpress.org/plugins/posts-to-adn/)',
+					'user-agent' => 'Posts to ADN/'.ptadn_get_version().' (http://wordpress.org/plugins/posts-to-adn/)',
 					'method' => 'POST',
 					'body' => $jsonContent,
 					'headers' => array(
@@ -77,7 +77,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 			$result = $request->request(
 				'https://alpha-api.app.net/stream/0/'.$url,
 				array(
-					'user-agent' => 'Posts to ADN/1.6.5 (http://wordpress.org/plugins/posts-to-adn/)',
+					'user-agent' => 'Posts to ADN/'.ptadn_get_version().' (http://wordpress.org/plugins/posts-to-adn/)',
 					'method' => 'POST',
 					'body' => $params,
 					'headers' => array(
@@ -143,7 +143,7 @@ function ptadn_api_call( $url, $params = array(), $type = 'GET', $jsonContent = 
 		$result = $request->request(
 			'https://alpha-api.app.net/stream/0/'.$url,
 			array(
-				'user-agent' => 'Posts to ADN/1.6.5 (http://wordpress.org/plugins/posts-to-adn/)',
+				'user-agent' => 'Posts to ADN/'.ptadn_get_version().' (http://wordpress.org/plugins/posts-to-adn/)',
 				'method' => 'POST',
 				'body' => $payload,
 				'headers' => $headers
@@ -304,27 +304,31 @@ class PTADN_Subscribe_Widget extends WP_Widget {
 			echo '<p>'. sprintf( __('You haven\'t created any broadcast channels yet. <a href="%s">Create some</a>.'), admin_url('options-general.php?page=ptadn&tab=broadcast') ) .'</p>';
 			return;
 		}
-		?>
-		<p>
-			<label for="<?php echo $this->get_field_id('channel_id'); ?>"><?php _e('Select Menu:'); ?></label>
-			<select id="<?php echo $this->get_field_id('channel_id'); ?>" name="<?php echo $this->get_field_name('channel_id'); ?>">
-		<?php
-			foreach ( $broadcast_channels as $id => $channel ) {
-				$channel_def = base64_encode(json_encode(array("id" => $id, "title" => $channel['title'])));
-				echo '<option value="' . $channel_def . '"'
-					. selected( $channel_id, $channel_def, false )
-					. '>'. $channel['title'] . '</option>';
-			}
-		?>
-			</select>
-		</p>
-		<?php
+
+		echo '<p>';
+
+		echo '<label for="'.$this->get_field_id('channel_id').'">'._e('Select Menu:').'</label>';
+		echo '<select id="'.$this->get_field_id('channel_id').'" name="'.$this->get_field_name('channel_id').'">';
+
+		foreach ( $broadcast_channels as $id => $channel ) {
+			$channel_def = base64_encode(json_encode(array("id" => $id, "title" => $channel['title'])));
+			echo '<option value="' . $channel_def . '"'
+				. selected( $channel_id, $channel_def, false )
+				. '>'. $channel['title'] . '</option>';
+		}
+
+		echo '</select></p>';
+
 	}
 }
 
-add_action('widgets_init', function () {
+add_action('widgets_init', 'ptadn_add_widget');
+
+function ptadn_add_widget() {
+
 	register_widget( 'PTADN_Subscribe_Widget' );
-});
+
+}
 
 // PtADN Settings
 function ptadn_conf() {
@@ -1480,6 +1484,14 @@ function ptadn_meta( $type, $context ) {
 
 		}
 	}
+
+}
+
+// Version
+function ptadn_get_version() {
+
+	$data = get_plugin_data(__FILE__);
+	return $data['Version'];
 
 }
 
