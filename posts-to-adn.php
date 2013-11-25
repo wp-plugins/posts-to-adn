@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6.6
+Version: 1.6.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
@@ -817,7 +817,7 @@ function ptadn_conf() {
 
 			echo '<form action="'.admin_url( 'options-general.php?page=' . PTADN_SLUG ).'&amp;tab='.$tab.'" method="post">';
 			$broadcast_channels = get_broadcast_channels();
-			if ( count( $broadcast_channels ) == 0 ) {
+			if ( !is_array( $broadcast_channels ) || count( $broadcast_channels ) == 0 ) {
 
 				echo '<p>You don\'t own any broadcast channel.</p>';
 
