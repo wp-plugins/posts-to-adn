@@ -3,8 +3,8 @@ Contributors: maximevalette
 Donate link: http://maxime.sh/paypal
 Tags: adn, app.net, autopost, posting, post
 Requires at least: 3.0
-Tested up to: 3.8
-Stable tag: 1.6.7
+Tested up to: 3.9
+Stable tag: 1.6.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,6 +24,7 @@ Current features:
 * Per-post customization
 * Publish old posts with the box in the compose view
 * App.net Broadcast Channels support
+* Shortcode for displaying Broadcast Channels [adn-channel channel_id=35631]
 
 I'm open to suggestions.
 
@@ -36,6 +37,13 @@ Ping me on App.net: http://alpha.app.net/maxime
 3. Configure your account from the new Posts to ADN Settings submenu
 
 == Changelog ==
+
+= 1.6.8 =
+* Fixed a bug preventing the Broadcast to be sent on first post.
+* Added a shortcode for displaying Broadcast Channels.
+* Added an excerpt length setting for Broadcast messages.
+* Stripped slashes on Broadcast Channel creation.
+* Some WordPress VIP compliances.
 
 = 1.6.7 =
 * An error could appear sometimes instead of the channels listing.
