@@ -5,7 +5,7 @@ Plugin URI: http://wordpress.org/plugins/posts-to-adn/
 Description: Automatically posts your new blog articles to your App.net account.
 Author: Maxime VALETTE
 Author URI: http://maxime.sh
-Version: 1.6.8
+Version: 1.6.9
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 */
@@ -548,13 +548,15 @@ function ptadn_conf() {
 
 			}
 
+			$ptadn_types = array();
+
 			if ( is_array( $_POST['ptadn_types'] ) ) {
 
-				$ptadn_types = sanitize_text_field( $_POST['ptadn_types'] );
+				foreach ( $_POST['ptadn_types'] as $i => $type ) {
 
-			} else {
+					$ptadn_types[$i] = sanitize_text_field( $type );
 
-				$ptadn_types = array();
+				}
 
 			}
 
